@@ -1,0 +1,36 @@
+.scroll-panel {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  padding-inline: var(--space-6);
+  position: relative;
+  z-index: var(--z-content);
+  pointer-events: none;
+}
+
+.scroll-panel-inner {
+  max-width: 560px;
+  background: linear-gradient(180deg, rgba(10,12,10,0.0), rgba(10,12,10,0.0));
+  pointer-events: auto;
+}
+
+.scroll-panel-left { justify-content: flex-start; }
+.scroll-panel-right { justify-content: flex-end; margin-left: auto; }
+.scroll-panel-center { justify-content: center; text-align: center; }
+
+.scroll-panel-title {
+  font-size: var(--fs-display-lg);
+  line-height: var(--lh-tight);
+  margin-block: var(--space-4);
+}
+
+.scroll-panel-body {
+  font-size: var(--fs-body-lg);
+  color: var(--color-text-dim);
+  max-width: 46ch;
+}
+
+@media (max-width: 768px) {
+  .scroll-panel-right { margin-left: 0; }
+  .scroll-panel-title { font-size: var(--fs-display-md); }
+}

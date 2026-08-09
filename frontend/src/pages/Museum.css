@@ -1,0 +1,11 @@
+.museum { padding-top: 140px; padding-bottom: var(--space-32); }
+
+.museum-header { max-width: 760px; margin-bottom: var(--space-16); }
+.museum-title { font-size: var(--fs-display-md); margin-block: var(--space-2) var(--space-4); }
+.museum-lede { font-size: var(--fs-body-lg); line-height: var(--lh-normal); }
+
+.museum-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-6);
+}

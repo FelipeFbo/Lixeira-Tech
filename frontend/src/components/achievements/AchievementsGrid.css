@@ -1,0 +1,29 @@
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+.achievement-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  transition: border-color var(--dur-base) var(--ease-out-expo), transform var(--dur-base) var(--ease-out-expo);
+}
+
+.achievement-badge.is-unlocked {
+  border-color: var(--color-border-strong);
+  box-shadow: 0 0 0 1px rgba(212, 255, 61, 0.06) inset;
+}
+
+.achievement-badge.is-locked { opacity: 0.45; }
+
+.achievement-badge-icon { font-size: 2rem; }
+.achievement-badge-title { font-size: var(--fs-body-sm); }
+.achievement-badge-desc { font-size: 0.75rem; line-height: var(--lh-normal); }

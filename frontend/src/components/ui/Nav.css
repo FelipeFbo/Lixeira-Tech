@@ -1,0 +1,98 @@
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-nav);
+  padding-block: var(--space-4);
+  transition: background var(--dur-base) ease, border-color var(--dur-base) ease, backdrop-filter var(--dur-base) ease;
+  border-bottom: 1px solid transparent;
+}
+
+.nav-scrolled {
+  background: var(--color-overlay);
+  backdrop-filter: blur(14px);
+  border-bottom-color: var(--color-border);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  font-size: 1.05rem;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.nav-link {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding-block: var(--space-1);
+}
+.nav-link:hover, .nav-link.active { color: var(--color-text); }
+.nav-link.active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -4px;
+  height: 1px;
+  background: var(--color-accent);
+}
+
+.nav-logout { color: var(--color-support-coral); opacity: 0.7; }
+.nav-logout:hover { opacity: 1; }
+
+.nav-cta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  background: var(--color-accent);
+  color: #06120a;
+  padding: 0.6em 1.3em;
+  border-radius: var(--radius-full);
+}
+
+.nav-theme-toggle {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: background var(--dur-base) ease, color var(--dur-base) ease, border-color var(--dur-base) ease;
+}
+.nav-theme-toggle:hover { color: var(--color-accent); border-color: var(--color-accent); }
+
+@media (max-width: 860px) {
+  .nav { padding-block: var(--space-3); }
+  .nav-inner { align-items: flex-start; gap: var(--space-3); flex-wrap: wrap; }
+  .nav-links { order: 3; width: 100%; gap: var(--space-4); flex-wrap: wrap; }
+}
+
+@media (max-width: 520px) {
+  .nav-links { gap: var(--space-3); }
+  .nav-link, .nav-cta { font-size: 0.7rem; }
+  .nav-cta { padding: 0.55em 0.85em; }
+}

@@ -1,0 +1,95 @@
+{
+  "users": [
+    {
+      "id": "486b4281-2831-4685-90cc-95482f1b5465",
+      "name": "TADS",
+      "matricula": "1",
+      "email": "teste@gmail.com",
+      "password_hash": "$2a$10$hxeYyaDvGfQZpvBxQ76t.er3/Dd8DeJI8NQneZHA7gPeAbH6PD34K",
+      "class_name": "TADS",
+      "points": 35,
+      "created_at": "2026-08-04T22:47:52.452Z"
+    },
+    {
+      "id": "62304509-f21d-48c9-9e46-cb7f444e2469",
+      "name": "Colégio Estadual Centro Est Educ Pedro B Neto",
+      "matricula": "101020",
+      "email": "Fboempresarial@gmail.com",
+      "password_hash": "$2a$10$DNQ7vCg70N.1y7ujP0CfCOA5j2wDSbN6QmfSs9CQBt/yhaxg7MXFm",
+      "class_name": "Colégio Estadual Centro Est Educ Pedro B Neto",
+      "points": 30,
+      "created_at": "2026-08-05T23:41:49.205Z"
+    },
+    {
+      "id": "deec164f-7f23-49a1-a871-26ddb55ea8d4",
+      "name": "CEI Fag CEI",
+      "matricula": "",
+      "email": "CEIFagCEI@gmail.com",
+      "password_hash": "$2a$10$k/pAKpnpXK8uQNYiq9y0/OmF/W.8CKD5NyICZcMaqQ.ZNSMSPt1aC",
+      "class_name": "CEI Fag CEI",
+      "points": 0,
+      "created_at": "2026-08-09T01:09:46.689Z"
+    },
+    {
+      "id": "c2632080-5ebe-4ca9-bd32-766ab0ed2af7",
+      "name": "Colegio Adventista Educacao Infantil Ensino Fundamental e Medio",
+      "matricula": "",
+      "email": "ColegioAdventistaEducacaoInfantilEnsinoFundamentaleMedio@gmail.com",
+      "password_hash": "$2a$10$qYdMbxWTrERQCQ6z4ry1h.EySdCl.A3LZvdmm4D3uQHOTiXBsPh2G",
+      "class_name": "Colegio Adventista Educacao Infantil Ensino Fundamental e Medio",
+      "points": 0,
+      "created_at": "2026-08-09T01:42:11.886Z"
+    },
+    {
+      "id": "d5bdd341-2247-4bbc-8557-832896d72ac0",
+      "name": "Colegio Marista de Cascavel Ei Ef em",
+      "matricula": "",
+      "email": "ColegioMaristadeCascavelEiEfem@gmail.com",
+      "password_hash": "$2a$10$pjxzfMxS58oyuB8oV0afv.43eu2iwj38xSUu8qnrvlZeavUjmCchS",
+      "class_name": "Colegio Marista de Cascavel Ei Ef em",
+      "points": 0,
+      "created_at": "2026-08-09T01:45:38.401Z"
+    }
+  ],
+  "deposits": [
+    {
+      "id": "df4b1477-3ec8-4e7c-996a-cf9e9484f6cd",
+      "user_id": "486b4281-2831-4685-90cc-95482f1b5465",
+      "item_type": "notebook",
+      "quantity": 1,
+      "weight_delta": 3,
+      "status": "approved",
+      "points": 30,
+      "description": "",
+      "created_at": "2026-08-04T22:47:58.257Z",
+      "updated_at": "2026-08-04T22:48:33.211Z",
+      "timestamp_client": "2026-08-04T22:47:58.257Z"
+    },
+    {
+      "id": "9e058837-45f1-4adf-b9ed-c73e3ee90b10",
+      "user_id": "486b4281-2831-4685-90cc-95482f1b5465",
+      "item_type": "outros",
+      "quantity": 1,
+      "weight_delta": 0.5,
+      "status": "approved",
+      "points": 5,
+      "description": "",
+      "created_at": "2026-08-04T22:48:07.725Z",
+      "updated_at": "2026-08-04T22:48:32.321Z",
+      "timestamp_client": "2026-08-04T22:48:07.725Z"
+    },
+    {
+      "id": "ebf36899-8457-4038-8201-f46f2ec06ed5",
+      "user_id": "62304509-f21d-48c9-9e46-cb7f444e2469",
+      "item_type": "notebook",
+      "quantity": 2,
+      "weight_delta": 3,
+      "status": "approved",
+      "points": 30,
+      "description": "notbook",
+      "created_at": "2026-08-09T15:01:13.734Z",
+      "updated_at": "2026-08-09T15:02:32.172Z",
+      "timestamp_client": "2026-08-09T15:01:13.734Z"
+    }
+  ]
+}

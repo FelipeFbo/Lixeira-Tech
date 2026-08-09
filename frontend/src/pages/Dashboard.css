@@ -1,0 +1,51 @@
+.dashboard { padding-top: 140px; padding-bottom: var(--space-32); }
+
+.dashboard-title { font-size: var(--fs-display-md); margin-block: var(--space-2) var(--space-8); }
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  padding: var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.dashboard-hero-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.dashboard-grid {
+  margin-top: var(--space-16);
+  max-width: 420px;
+}
+
+.dashboard-ranking-row {
+  display: flex;
+  justify-content: space-between;
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.dashboard-ranking-link {
+  display: inline-block;
+  margin-top: var(--space-4);
+  font-size: var(--fs-body-sm);
+}
+
+.dashboard-timeline { margin-top: var(--space-16); }
+.dashboard-timeline .eyebrow { display: block; margin-bottom: var(--space-4); }
+
+.dashboard-tree { margin-top: var(--space-16); }
+
+.dashboard-achievements { margin-top: var(--space-16); margin-bottom: var(--space-16); }
+.dashboard-achievements .eyebrow { display: block; margin-bottom: var(--space-4); }
+
+@media (max-width: 860px) {
+  .dashboard-stats { grid-template-columns: 1fr; }
+}

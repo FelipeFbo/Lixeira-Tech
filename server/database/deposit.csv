@@ -1,0 +1,8 @@
+id,user_id,lixeira_id,item_type,photo_url,photo_sha256,photo_phash,timestamp_client,timestamp_server,sensor_event_id,weight_delta,status,auto_validation_result,moderator_id,created_at,updated_at,points
+f1732663-bed4-47b7-a011-61350b3b8aa2,7274dca6-889c-4122-b4da-0cbd4ed95412,,computador,,,,2025-10-16 11:29:07,,,17.0,approved,,,2025-10-16 11:29:07,2025-10-16 11:29:07,170
+fff83dd9-1ef3-4311-9ed3-239e714eb9e3,c42b19ea-aeca-4d93-ad19-de939accbc5c,,celular,,,,2025-10-16 11:30:01,,,8.0,approved,,,2025-10-16 11:30:01,2025-10-16 11:30:01,1
+1ee45dbf-809a-44bf-920a-758b8417b643,8030d790-5cb9-4ff3-ac4a-77d13d945905,,pq eu quero,,,,2025-10-16 11:31:58,,,2000.0,approved,,,2025-10-16 11:31:58,2025-10-16 11:31:58,20000
+324a1fb8-fa37-4e47-875f-0995dfac2a05,a9434ef1-43cf-4b9e-86e6-b64ade5b8cad,,Pontos manuais,,,,2025-10-16 11:33:33,,,-90.0,approved,,,2025-10-16 11:33:33,2025-10-16 11:33:33,-900
+4ea24122-457e-47b8-b9ee-d0daf71adf0f,c42b19ea-aeca-4d93-ad19-de939accbc5c,,Pontos manuais,,,,2025-10-16 11:37:13,,,75.0,approved,,,2025-10-16 11:37:13,2025-10-16 11:37:13,750
+a0aaf996-881c-4921-af5a-8ea216a9a60b,c42b19ea-aeca-4d93-ad19-de939accbc5c,,computador,,,,2025-10-16 11:37:22,,,20.0,approved,,,2025-10-16 11:37:22,2025-10-16 11:37:22,200
+325297e1-eec2-4aa0-8994-dc1cc00907f5,8030d790-5cb9-4ff3-ac4a-77d13d945905,,porque sm,,,,2025-10-16 13:39:45,,,900.0,approved,,,2025-10-16 13:39:45,2025-10-16 13:39:45,9000

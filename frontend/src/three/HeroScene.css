@@ -1,0 +1,20 @@
+.hero-canvas-wrap {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: var(--z-canvas);
+}
+
+.hero-fallback {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  color: var(--color-accent);
+}
+
+.hero-fallback-leaf { color: var(--color-accent); opacity: 0.6; }

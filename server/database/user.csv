@@ -1,0 +1,7 @@
+id,name,matricula,email,password_hash,class_name,points,created_at
+c42b19ea-aeca-4d93-ad19-de939accbc5c,Carlos Henrique do Amaral,000000,cw20carloshenrique@gmail.com,$2a$10$8NzLUMe4mG8ULGthHu0OSOw6I5yYp6szXCse4K6ecVZmLcni4uqWW,3°C,951,2025-10-16 11:23:42
+8030d790-5cb9-4ff3-ac4a-77d13d945905,João Antonio Biffi,12345,joao.biffi@escola.pr.gov.br,$2a$10$HmFNcGNxQyM7luZLpv3vkeRgtEPDPXmtY1i7WeRrw7x9xUxvdfIwC,3ºC,29000,2025-10-16 11:26:45
+7274dca6-889c-4122-b4da-0cbd4ed95412,Jalin Rabei,0,cw4554carloshenrique@gmail.com,$2a$10$UQcuYY/tVXYwmpCaM7LYDuDXBWx1QETQ6GA8I/vexWvv9bI8eE02m,3°C,170,2025-10-16 11:28:23
+a9434ef1-43cf-4b9e-86e6-b64ade5b8cad,Simas Turbo,01,hdkebdidnesg@gmail,$2a$10$vBuU9BmsotC00YMAE10tr.5yb2cmOHnVpLDsrj.P24De0v4oNqQhi,3°C,-900,2025-10-16 11:32:32
+6e6e70d7-a5ad-4b6c-a928-034038473019,asda,asd,asdd@asd,$2a$10$mPPxJDjIbSiP0K6I8Z7.c.58ZXrm2lFLALWwD/uEMEdYmIwiL0YaS,asd,0,2025-10-16 18:10:57
+969859ec-4ac2-4bb9-bcc6-0251f01c13fd,Jalin Rabei 2x,a,a@a.a,$2a$10$TglzNovUg8hYhE0tabQ1jOdxPc1qsBUNVcC.rpPR4WYGnG8WrsaVK,a,0,2025-10-16 18:11:45

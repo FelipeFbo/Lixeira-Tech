@@ -1,0 +1,1 @@
+id,event_id,lixeira_id,sensor_id,event_type,timestamp,weight_before,weight_after,hmac_signature,extra_data,created_at

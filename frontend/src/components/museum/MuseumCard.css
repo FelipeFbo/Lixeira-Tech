@@ -1,0 +1,19 @@
+.museum-card-link { display: block; text-decoration: none; color: inherit; }
+
+.museum-card {
+  padding: var(--space-6);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.museum-card-icon { color: var(--color-accent); margin-bottom: var(--space-2); }
+.museum-card-year { font-size: var(--fs-body-sm); }
+.museum-card-name { font-size: var(--fs-display-md); line-height: var(--lh-snug); margin-bottom: var(--space-1); }
+.museum-card-tagline { font-size: var(--fs-body-sm); flex: 1; }
+.museum-card-cta {
+  margin-top: var(--space-4);
+  font-size: var(--fs-body-sm);
+  color: var(--color-accent);
+}

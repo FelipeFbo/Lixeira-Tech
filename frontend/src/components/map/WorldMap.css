@@ -1,0 +1,54 @@
+.world-map-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.world-map-country {
+  fill: rgba(238, 241, 230, 0.03);
+  stroke: rgba(238, 241, 230, 0.14);
+  stroke-width: 0.6;
+  transition: fill var(--dur-base) var(--ease-out-expo), stroke var(--dur-base) var(--ease-out-expo);
+}
+
+.world-map-country.has-data {
+  fill: rgba(212, 255, 61, 0.05);
+  stroke: rgba(212, 255, 61, 0.22);
+  cursor: pointer;
+}
+
+.world-map-country.has-data.is-active {
+  fill: rgba(212, 255, 61, 0.14);
+  stroke: rgba(212, 255, 61, 0.55);
+}
+
+.world-map-country.is-brazil {
+  stroke: var(--color-accent-strong);
+  stroke-width: 1;
+}
+
+.world-map-dot-group {
+  cursor: pointer;
+}
+
+.world-map-dot {
+  fill: var(--color-accent);
+  filter: drop-shadow(0 0 4px var(--color-accent-glow));
+  transition: r var(--dur-fast) var(--ease-out-expo);
+}
+
+.world-map-dot.is-brazil {
+  fill: var(--color-accent-strong);
+  filter: drop-shadow(0 0 8px var(--color-accent-glow));
+}
+
+.world-map-dot-ring {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1;
+}
+
+.world-map-dot-group:hover .world-map-dot {
+  r: 6;
+}

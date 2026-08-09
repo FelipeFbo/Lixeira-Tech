@@ -1,0 +1,48 @@
+.hero-backdrop {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.hero-backdrop-blob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(70vw, 900px);
+  height: min(70vw, 900px);
+  margin: -35vw 0 0 -35vw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--color-accent-glow), transparent 60%),
+    radial-gradient(circle at 70% 70%, rgba(77, 215, 210, 0.18), transparent 55%);
+  filter: blur(60px);
+  opacity: 0.7;
+}
+
+.hero-backdrop-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at 50% 50%, black, transparent 75%);
+}
+
+.hero-backdrop-icon {
+  position: absolute;
+  color: var(--color-border-strong);
+}
+.hero-backdrop-icon-1 { top: 18%; left: 12%; }
+.hero-backdrop-icon-2 { bottom: 22%; right: 16%; }
+.hero-backdrop-icon-3 { top: 55%; left: 60%; color: var(--color-accent-dim); opacity: 0.4; }
+
+.hero-backdrop-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, var(--color-bg) 100%);
+}
+
+@media (max-width: 768px) {
+  .hero-backdrop-icon-1, .hero-backdrop-icon-2, .hero-backdrop-icon-3 { display: none; }
+}

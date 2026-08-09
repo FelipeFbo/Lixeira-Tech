@@ -1,0 +1,26 @@
+.auth-ambient {
+  background: radial-gradient(circle at 30% 20%, var(--color-bg-elevated-2), var(--color-bg) 70%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-16) var(--space-12);
+  min-height: 100vh;
+  color: var(--color-accent);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-ambient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-12);
+  max-width: 420px;
+  opacity: 0.9;
+}
+
+.auth-ambient-copy { color: var(--color-text); }
+.auth-ambient-title { font-size: var(--fs-display-md); line-height: var(--lh-tight); margin-top: var(--space-4); }
+
+@media (max-width: 900px) {
+  .auth-ambient { display: none; }
+}

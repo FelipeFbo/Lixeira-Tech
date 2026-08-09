@@ -1,0 +1,48 @@
+.museum-detail { padding-top: 140px; padding-bottom: var(--space-32); max-width: 820px; }
+
+.museum-detail-back { display: inline-block; margin-bottom: var(--space-8); }
+
+.museum-detail-hero { margin-bottom: var(--space-12); }
+.museum-detail-icon { color: var(--color-accent); margin-bottom: var(--space-4); }
+.museum-detail-title { font-size: var(--fs-display-lg); margin-block: var(--space-2) var(--space-2); }
+.museum-detail-tagline { font-size: var(--fs-body-lg); }
+
+.museum-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.museum-detail-card { padding: var(--space-6); }
+
+.museum-detail-list {
+  margin: var(--space-3) 0 0;
+  padding-left: 1.1em;
+  color: var(--color-text-dim);
+  line-height: var(--lh-normal);
+}
+.museum-detail-list li { margin-bottom: var(--space-2); }
+
+.museum-detail-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.museum-detail-tag {
+  font-size: var(--fs-body-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 0.4em 0.9em;
+  color: var(--color-text-dim);
+}
+
+.museum-detail-disposal {
+  padding: var(--space-6);
+  margin-bottom: var(--space-12);
+  border-color: var(--color-support-amber);
+  background: rgba(255, 180, 84, 0.06);
+}
+.museum-detail-disposal-text { margin-top: var(--space-3); line-height: var(--lh-normal); }
+
+.museum-detail-timeline-section .eyebrow { display: block; margin-bottom: var(--space-4); }
+
+@media (max-width: 640px) {
+  .museum-detail-grid { grid-template-columns: 1fr; }
+}

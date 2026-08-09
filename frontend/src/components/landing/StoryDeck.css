@@ -1,0 +1,68 @@
+.story-track {
+  position: relative;
+}
+
+.story-slide {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--space-16);
+  padding-inline: var(--space-6);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ---------- indicador de capítulo (fixo na tela, estilo mostrador Le Mans) ---------- */
+.story-progress {
+  position: fixed;
+  right: var(--space-8);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  z-index: var(--z-overlay);
+  font-size: var(--fs-body-sm);
+  pointer-events: none;
+}
+
+.story-progress-track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.story-progress-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  transition: background var(--dur-base) ease, transform var(--dur-base) ease;
+}
+.story-progress-dot.is-active {
+  background: var(--color-accent);
+  transform: scale(1.6);
+}
+
+.story-progress-label {
+  position: fixed;
+  left: var(--space-8);
+  bottom: var(--space-8);
+  z-index: var(--z-overlay);
+  font-size: var(--fs-body-sm);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .story-progress { right: var(--space-4); }
+  .story-progress-label { left: var(--space-4); bottom: var(--space-4); }
+}
+
+@media (max-height: 640px) {
+  .story-slide { min-height: auto; padding-block: var(--space-24); }
+}
