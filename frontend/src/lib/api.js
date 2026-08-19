@@ -40,11 +40,16 @@ export const api = {
 
   deposits: {
     listByUser: (userId) => request(`/api/deposits/${userId}`),
-    create: ({ userId, wasteType, quantity, weight, description }) =>
+    create: ({ userId, binId, wasteType, quantity, weight, description }) =>
       request("/api/deposits", {
         method: "POST",
-        body: JSON.stringify({ userId, wasteType, quantity, weight, description }),
+        body: JSON.stringify({ userId, binId, wasteType, quantity, weight, description }),
       }),
+  },
+
+  kiosk: {
+    bins: () => request("/api/kiosk/bins"),
+    userByCode: (code) => request(`/api/kiosk/users/${encodeURIComponent(code)}`),
   },
 
   leaderboard: {
@@ -60,9 +65,13 @@ export const api = {
   },
 
   admin: {
+    bins: () => request("/api/admin/bins"),
+    createBin: (name, location) => request("/api/admin/bins", { method: "POST", body: JSON.stringify({ name, location }) }),
+    updateBin: (binId, changes) => request("/api/admin/bins/update", { method: "POST", body: JSON.stringify({ binId, ...changes }) }),
+    collectBin: (binId) => request("/api/admin/bins/collect", { method: "POST", body: JSON.stringify({ binId }) }),
     depositsHistory: () => request("/api/admin/deposits/historico"),
     globalStats: () => request("/api/admin/global-stats"),
-    classRankings: () => request("/api/admin/class-rankings"),
+    userRankings: () => request("/api/admin/user-rankings"),
     pendingDeposits: () => request("/api/admin/pending-deposits"),
     approveDeposit: (depositId, points) =>
       request("/api/admin/approve-deposit", {
@@ -74,7 +83,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ depositId }),
       }),
-    students: () => request("/api/admin/students"),
+    users: () => request("/api/admin/users"),
     addPoints: (userId, points, reason) =>
       request("/api/admin/add-points", {
         method: "POST",

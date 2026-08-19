@@ -41,11 +41,11 @@ export default function Signup() {
           <h1 className="display auth-title">Criar conta</h1>
 
           <form onSubmit={handleSubmit} noValidate>
-            <Field label="Nome do colégio">
-              <Input required value={form.name} onChange={update("name")} placeholder="Ex: Colégio Estadual Centro" />
+            <Field label="Nome completo">
+              <Input required value={form.name} onChange={update("name")} placeholder="Ex: Ana Silva" />
             </Field>
             <Field label="E-mail">
-              <Input type="email" required value={form.email} onChange={update("email")} placeholder="voce@escola.com" />
+              <Input type="email" required value={form.email} onChange={update("email")} placeholder="voce@email.com" />
             </Field>
             <Field label="Senha">
               <Input type="password" required value={form.password} onChange={update("password")} placeholder="••••••••" />

@@ -13,6 +13,7 @@ import Admin from "./pages/Admin";
 import WorldPanorama from "./pages/WorldPanorama";
 import Museum from "./pages/Museum";
 import MuseumDetail from "./pages/MuseumDetail";
+import Kiosk from "./pages/Kiosk";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
         <Routes>
+          <Route path="/quiosque" element={<Kiosk />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />

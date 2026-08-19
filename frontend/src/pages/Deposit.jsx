@@ -158,7 +158,7 @@ export default function Deposit() {
               <span className="text-accent mono">{impactPreview.co2Kg} kg de CO2</span>
             </p>
             <p className="text-dim">
-              Assim que um responsável aprovar, isso entra no seu histórico e no impacto do colégio.
+              Assim que um responsável aprovar, isso entra no seu histórico e no seu impacto ambiental.
             </p>
             <Button onClick={reset}>Registrar outro depósito</Button>
           </motion.div>

@@ -1,26 +1,41 @@
 .world-map-svg {
+  --map-country-fill: #e8eee1;
+  --map-country-stroke: #71805f;
+  --map-country-data-fill: #d4e9a2;
+  --map-country-data-stroke: #49631b;
+  --map-country-active-fill: #b9d86b;
+  --map-country-active-stroke: #30490b;
   width: 100%;
   height: auto;
   display: block;
   overflow: visible;
 }
 
+:root[data-theme="dark"] .world-map-svg {
+  --map-country-fill: rgba(238, 241, 230, 0.03);
+  --map-country-stroke: rgba(238, 241, 230, 0.14);
+  --map-country-data-fill: rgba(212, 255, 61, 0.05);
+  --map-country-data-stroke: rgba(212, 255, 61, 0.22);
+  --map-country-active-fill: rgba(212, 255, 61, 0.14);
+  --map-country-active-stroke: rgba(212, 255, 61, 0.55);
+}
+
 .world-map-country {
-  fill: rgba(238, 241, 230, 0.03);
-  stroke: rgba(238, 241, 230, 0.14);
-  stroke-width: 0.6;
+  fill: var(--map-country-fill);
+  stroke: var(--map-country-stroke);
+  stroke-width: 0.75;
   transition: fill var(--dur-base) var(--ease-out-expo), stroke var(--dur-base) var(--ease-out-expo);
 }
 
 .world-map-country.has-data {
-  fill: rgba(212, 255, 61, 0.05);
-  stroke: rgba(212, 255, 61, 0.22);
+  fill: var(--map-country-data-fill);
+  stroke: var(--map-country-data-stroke);
   cursor: pointer;
 }
 
 .world-map-country.has-data.is-active {
-  fill: rgba(212, 255, 61, 0.14);
-  stroke: rgba(212, 255, 61, 0.55);
+  fill: var(--map-country-active-fill);
+  stroke: var(--map-country-active-stroke);
 }
 
 .world-map-country.is-brazil {

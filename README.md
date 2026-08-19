@@ -2,7 +2,7 @@
 
 # 🌱 Lixeira Tech
 
-**Plataforma escolar de conscientização e coleta de lixo eletrônico**
+**Plataforma de conscientização e coleta de lixo eletrônico**
 
 Transformando o descarte correto de eletrônicos em impacto ambiental visível, mensurável e gamificado.
 
@@ -17,8 +17,8 @@ visível um problema que hoje passa despercebido — o acúmulo de lixo eletrôn
 lixo comum, o e-lixo não fica "à vista"; ele se acumula em gavetas, depósitos e aterros sem que
 ninguém realmente veja a escala do problema.
 
-A plataforma conecta colégios em um sistema de descarte responsável, onde cada
-depósito registrado é convertido em **impacto ambiental real** — kg de e-lixo desviado, CO₂
+A plataforma conecta pessoas em um sistema de descarte responsável, onde cada
+depósito registrado é convertido em **impacto ambiental pessoal e coletivo** — kg de e-lixo desviado, CO₂
 evitado, árvores equivalentes preservadas — e não apenas em pontos abstratos de gamificação.
 
 ## ✨ Funcionalidades
@@ -29,10 +29,19 @@ evitado, árvores equivalentes preservadas — e não apenas em pontos abstratos
 - Estética *thin line art* animada, paleta eco-tech dark + verde elétrico
 
 ### Sistema principal (área logada)
-- **Dashboard do colégio** — impacto em kg/CO₂/árvores e histórico de depósitos
+- **Dashboard pessoal** — impacto em kg/CO₂/árvores e histórico de depósitos
 - **Registrar depósito** — fluxo simples de descarte com feedback imediato de impacto
-- **Ranking da comunidade** — pódio de impacto real, global e por colégio
-- **Painel admin** — aprovação/rejeição de depósitos, gestão de colégios, estatísticas globais
+- **Ranking da comunidade** — pódio de impacto real entre usuários
+- **Painel admin** — aprovação/rejeição de depósitos, gestão de usuários e estatísticas globais
+- **Quiosque para tablet** — simulação do fluxo da lixeira física: identificação por código pessoal, escolha do resíduo, pesagem e abertura da porta
+- **Gestão de lixeiras** — capacidade, estado online/manutenção, alertas, coleta simulada e mapa operacional das unidades
+
+### Demonstração sem hardware
+
+Abra `http://localhost:5173/quiosque` em um tablet ou computador. Após criar uma conta,
+o dashboard mostra um código pessoal para ser informado no quiosque. O fluxo simula leitura do
+código, balança e porta da lixeira; os depósitos passam a ficar associados à lixeira escolhida e
+atualizam a capacidade exibida no painel administrativo.
 
 ### Educação ambiental
 - 🌎 **Panorama Mundial** — mapa-múndi interativo com dados de geração de e-lixo por país, comparando com o Brasil e a média mundial
@@ -49,25 +58,50 @@ evitado, árvores equivalentes preservadas — e não apenas em pontos abstratos
 | 3D / Motion | React Three Fiber, Framer Motion, Lenis (scroll suave) |
 | Mapa | d3-geo + topojson-client (renderização SVG, sem dependências pesadas) |
 | Back-end | Node.js + Express |
-| Persistência | Banco em arquivo JSON (`server/database/db.json`) — sem necessidade de servidor de banco externo |
+| Persistência | PostgreSQL, com esquema SQL e script de migração dos dados legados |
 | IA | Proxy para [OpenRouter](https://openrouter.ai) (modelos gratuitos), com fallback local caso a chave não esteja configurada |
 
 ## 🚀 Rodando o projeto localmente
 
 ### Pré-requisitos
 - Node.js 20.6 ou superior
+- PostgreSQL 14 ou superior, local ou hospedado (Neon, Supabase, Render etc.)
+- Opcionalmente, Docker Desktop para iniciar o banco local já configurado
+
+### PostgreSQL local com Docker (recomendado para desenvolvimento)
+
+Na raiz do projeto, execute:
+
+```bash
+docker compose up -d
+```
+
+O banco ficará disponível em `localhost:5432` com a configuração já presente no `.env.example`.
 
 ### 1. Back-end
 
 ```bash
 cd server
 npm install
+copy .env.example .env
+```
+
+Preencha `DATABASE_URL` no arquivo `server/.env`. Exemplo local:
+
+```env
+DATABASE_URL=postgresql://lixeira_tech:lixeira_tech_dev@localhost:5432/lixeira_tech
+```
+
+Em seguida, importe os dados existentes uma única vez e inicie o servidor:
+
+```bash
+npm run db:migrate
 npm run dev
 ```
 
-O servidor sobe em `http://localhost:3001`. Na primeira execução, ele cria automaticamente o
-banco de dados (`server/database/db.json`) vazio — cadastre um usuário pela interface para começar
-a popular os dados. A senha de admin do dia aparece no console ao iniciar o servidor.
+O servidor sobe em `http://localhost:3001`, cria as tabelas necessárias automaticamente e usa
+PostgreSQL para todos os cadastros, depósitos, aprovações e rankings. A senha de admin do dia
+aparece no console ao iniciar o servidor.
 
 **Opcional — Assistente com IA de verdade:**
 
@@ -101,7 +135,8 @@ LixeiraTech-main/
 │       ├── lib/               # API client, cálculo de impacto, scroll
 │       └── styles/            # Design tokens e estilos globais
 └── server/                 # Node + Express
-    ├── database/            # Banco de dados em JSON
+    ├── database/            # Esquema SQL e arquivo legado para importação única
+    ├── scripts/             # Script de migração para PostgreSQL
     └── index.js             # Rotas da API
 ```
 

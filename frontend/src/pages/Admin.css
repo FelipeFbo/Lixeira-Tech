@@ -155,6 +155,11 @@
 .admin-college-ranking-row p { margin: var(--space-1) 0 0; }
 .admin-college-points { font-size: var(--fs-mono-lg); white-space: nowrap; }
 
+.admin-bins { display: grid; gap: var(--space-6); }.admin-bins-header { display: flex; justify-content: space-between; align-items: end; gap: var(--space-4); flex-wrap: wrap; }.admin-bins-header h2 { margin: var(--space-1) 0 0; font-size: var(--fs-display-sm); }.admin-bins-header > p { max-width: 28rem; margin: 0; }
+.admin-bin-map { display: grid; grid-template-columns: minmax(10rem, .35fr) 1fr; gap: var(--space-5); align-items: center; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }.admin-bin-map strong { font-size: var(--fs-display-sm); }.admin-bin-map-canvas { position: relative; min-height: 8rem; overflow: hidden; border-radius: var(--radius-sm); background: linear-gradient(135deg, color-mix(in srgb, var(--color-support-cyan) 10%, var(--color-bg-elevated-2)), var(--color-bg-elevated-2)); }.admin-bin-map-canvas::before { content: ''; position: absolute; inset: 0; opacity: .3; background-image: linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px); background-size: 2rem 2rem; }.admin-bin-map-canvas span { position: absolute; left: var(--map-x); top: var(--map-y); z-index: 1; display: inline-flex; align-items: center; gap: .35rem; max-width: 9rem; font-size: var(--fs-mono-xs); color: var(--color-text); transform: translate(-50%, -50%); }.admin-bin-map-canvas i { width: .7rem; height: .7rem; flex: 0 0 auto; border-radius: 50%; background: var(--color-accent); box-shadow: 0 0 0 .22rem color-mix(in srgb, var(--color-accent) 18%, transparent); }.admin-bin-map-canvas .status-maintenance i { background: var(--color-support-amber); box-shadow: 0 0 0 .22rem color-mix(in srgb, var(--color-support-amber) 18%, transparent); }.admin-bin-map-canvas .status-offline i { background: var(--color-support-coral); box-shadow: 0 0 0 .22rem color-mix(in srgb, var(--color-support-coral) 18%, transparent); }
+.admin-bin-alert { display: flex; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--color-support-amber) 60%, transparent); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-support-amber) 10%, var(--color-bg-elevated)); }.admin-bin-alert strong { color: var(--color-support-amber); }
+.admin-bins-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }.admin-bin-card { display: grid; gap: var(--space-4); }.admin-bin-card.status-maintenance { border-color: color-mix(in srgb, var(--color-support-amber) 60%, transparent); }.admin-bin-card.status-offline { border-color: color-mix(in srgb, var(--color-support-coral) 60%, transparent); }.admin-bin-card-head { display: flex; justify-content: space-between; gap: var(--space-3); }.admin-bin-card-head h3 { margin: var(--space-1) 0; font-size: var(--fs-display-sm); }.admin-bin-card-head p { margin: 0; }.admin-bin-capacity { font-size: var(--fs-mono-lg); color: var(--color-accent); }.admin-bin-meter { height: .65rem; overflow: hidden; border-radius: var(--radius-full); background: var(--color-bg-elevated-2); }.admin-bin-meter span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--color-support-cyan), var(--color-accent)); }.status-maintenance .admin-bin-meter span { background: var(--color-support-amber); }.status-offline .admin-bin-meter span { background: var(--color-support-coral); }.admin-bin-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }.admin-bin-actions select { padding: .55rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg-elevated); color: var(--color-text); }.admin-bin-create { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--space-3); align-items: center; padding: var(--space-5); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); }.admin-bin-create .eyebrow { grid-column: 1 / -1; margin: 0; }
+
 @media (max-width: 860px) {
   .admin-stats-grid { grid-template-columns: 1fr 1fr; }
   .admin-dashboard-layout { grid-template-columns: 1fr; }
@@ -164,6 +169,8 @@
   .admin-dashboard-stats { grid-template-columns: repeat(2, 1fr); }
   .admin-dashboard-grid { grid-template-columns: 1fr; }
   .admin-college-ranking-row { padding: var(--space-4); }
+  .admin-bin-map { grid-template-columns: 1fr; }
+  .admin-bins-grid { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 520px) {
@@ -177,4 +184,5 @@
   .admin-weekly-chart { gap: var(--space-2); }
   .admin-weekly-bar { height: 130px; }
   .admin-weekly-bar > .text-dim { font-size: 0.62rem; }
+  .admin-bins-grid, .admin-bin-create { grid-template-columns: 1fr; }
 }

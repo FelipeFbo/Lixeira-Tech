@@ -1,24 +1,13 @@
 // server/index.js
 //
-// Backend da Lixeira Tech — versão para desenvolvimento/testes.
-// Em vez de MySQL, os dados ficam em server/database/db.json
-// (ver server/lib/jsonDb.js). Todos os endpoints e formatos de
-// resposta são os mesmos que o frontend (src/lib/api.js) já espera —
-// nenhum contrato mudou, só a forma como os dados são persistidos.
+// Backend da Lixeira Tech. Todos os dados persistem em PostgreSQL.
+// Os endpoints e formatos de resposta permanecem compatíveis com o frontend.
 
 import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { readDB, writeDB } from './lib/jsonDb.js';
-
-// Carrega variáveis de server/.env (ex: OPENROUTER_API_KEY), se existir.
-// Usa a API nativa do Node (>=20.6) — não precisa da lib "dotenv".
-try {
-  process.loadEnvFile(new URL('./.env', import.meta.url));
-} catch {
-  // Sem .env ainda — ok, o assistente cai no modo de respostas locais (fallback).
-}
+import { initDatabase, readDB, writeDB } from './db.js';
 
 const app = express();
 const PORT = 3001;
@@ -72,30 +61,28 @@ function isSameDay(isoA, isoB = new Date().toISOString()) {
 }
 
 function publicUser(user) {
-  const { password_hash, ...rest } = user;
-  return rest;
+  const { password_hash, matricula, class_name, kiosk_code, ...rest } = user;
+  return { ...rest, kioskCode: kiosk_code };
 }
 
 // ---------- Auth ----------
 
-app.post('/api/auth/signup', (req, res) => {
+app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, matricula, email, password } = req.body;
-    const db = readDB();
+    const { name, email, password } = req.body;
+    const db = await readDB();
 
     if (![name, email, password].every((value) => String(value || '').trim())) {
-      return res.status(400).json({ error: 'Preencha o nome do colégio, e-mail e senha' });
+      return res.status(400).json({ error: 'Preencha nome, e-mail e senha' });
     }
 
     const normalizedName = String(name || '').trim().toLocaleLowerCase('pt-BR');
-    const normalizedRegistration = String(matricula || '').trim();
     const existing = db.users.find((u) =>
       u.email === email ||
-      (normalizedRegistration && String(u.matricula || '').trim() === normalizedRegistration) ||
       String(u.name || '').trim().toLocaleLowerCase('pt-BR') === normalizedName
     );
     if (existing) {
-      return res.status(400).json({ error: 'Já existe uma conta com este e-mail, código ou nome de colégio' });
+      return res.status(400).json({ error: 'Já existe uma conta com este e-mail ou nome' });
     }
 
     const password_hash = bcrypt.hashSync(password, 10);
@@ -104,25 +91,25 @@ app.post('/api/auth/signup', (req, res) => {
     const user = {
       id,
       name,
-      matricula: normalizedRegistration,
+      matricula: '',
       email,
       password_hash,
       class_name: name,
       points: 0,
+      kiosk_code: uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase(),
       created_at: new Date().toISOString(),
     };
 
     db.users.push(user);
-    writeDB(db);
+    await writeDB(db);
 
-    const { id: _id, name: _name, matricula: _mat, email: _email, points } = user;
-    res.json({ user: { id: _id, name: _name, matricula: _mat, email: _email, points } });
+    res.json({ user: publicUser(user) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -133,9 +120,7 @@ app.post('/api/auth/login', (req, res) => {
         const adminUser = {
           id: 'admin',
           name: 'Administrador',
-          matricula: 'ADMIN',
           email: 'admin',
-          class_name: 'Administração',
           points: 0,
           is_admin: true,
         };
@@ -144,7 +129,7 @@ app.post('/api/auth/login', (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
-    const db = readDB();
+    const db = await readDB();
     const user = db.users.find((u) => u.email === email);
     if (!user) return res.status(401).json({ error: 'Credenciais inválidas' });
 
@@ -159,10 +144,10 @@ app.post('/api/auth/login', (req, res) => {
 
 // ---------- User stats ----------
 
-app.get('/api/user/stats/:userId', (req, res) => {
+app.get('/api/user/stats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const db = readDB();
+    const db = await readDB();
 
     const user = db.users.find((u) => u.id === userId);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -172,7 +157,7 @@ app.get('/api/user/stats/:userId', (req, res) => {
     const todayDeposits = userDeposits.filter((d) => isSameDay(d.created_at)).length;
 
     res.json({
-      collegeName: user.name,
+      userName: user.name,
       totalPoints: user.points,
       totalDeposits,
       todayDeposits,
@@ -184,10 +169,10 @@ app.get('/api/user/stats/:userId', (req, res) => {
 
 // ---------- Deposits ----------
 
-app.get('/api/deposits/:userId', (req, res) => {
+app.get('/api/deposits/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const db = readDB();
+    const db = await readDB();
 
     const rows = db.deposits
       .filter((d) => d.user_id === userId)
@@ -200,6 +185,7 @@ app.get('/api/deposits/:userId', (req, res) => {
         points: d.status === 'approved' ? d.points : 0,
         date: d.created_at,
         status: d.status,
+        binName: db.bins.find((bin) => bin.id === d.bin_id)?.name || null,
       }));
 
     res.json(rows);
@@ -208,15 +194,22 @@ app.get('/api/deposits/:userId', (req, res) => {
   }
 });
 
-app.post('/api/deposits', (req, res) => {
+app.post('/api/deposits', async (req, res) => {
   try {
-    const { userId, wasteType, quantity, weight, description } = req.body;
-    const db = readDB();
+    const { userId, binId, wasteType, quantity, weight, description } = req.body;
+    const db = await readDB();
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+    const bin = binId ? db.bins.find((item) => item.id === binId) : null;
+    if (binId && !bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
+    if (bin && bin.status !== 'online') return res.status(400).json({ error: 'Esta lixeira está indisponível no momento' });
 
     const now = new Date().toISOString();
     const deposit = {
       id: uuidv4(),
       user_id: userId,
+      bin_id: bin?.id || null,
       item_type: wasteType,
       quantity: Number(quantity),
       weight_delta: Number(weight),
@@ -229,7 +222,11 @@ app.post('/api/deposits', (req, res) => {
     };
 
     db.deposits.push(deposit);
-    writeDB(db);
+    if (bin) {
+      bin.capacity_pct = Math.min(100, bin.capacity_pct + Math.max(1, Math.ceil(Number(weight) * 2)));
+      bin.updated_at = now;
+    }
+    await writeDB(db);
 
     res.json({ success: true, message: 'Depósito registrado e aguardando aprovação' });
   } catch (error) {
@@ -239,20 +236,18 @@ app.post('/api/deposits', (req, res) => {
 
 // ---------- Admin: deposits history ----------
 
-app.get('/api/admin/deposits/historico', (req, res) => {
+app.get('/api/admin/deposits/historico', async (req, res) => {
   try {
-    const db = readDB();
+    const db = await readDB();
 
     const rows = db.deposits
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .map((d) => {
         const user = db.users.find((u) => u.id === d.user_id);
         return {
-          matricula: user?.matricula || '',
           id: d.id,
           user_id: d.user_id,
           userName: user?.name ?? '—',
-          class_name: user?.class_name ?? '—',
           wasteType: d.item_type,
           quantity: d.quantity,
           weight: d.weight_delta,
@@ -260,6 +255,7 @@ app.get('/api/admin/deposits/historico', (req, res) => {
           points: d.status === 'approved' ? d.points : 0,
           date: d.created_at,
           status: d.status,
+          binName: db.bins.find((bin) => bin.id === d.bin_id)?.name || 'Depósito manual',
         };
       });
 
@@ -269,11 +265,37 @@ app.get('/api/admin/deposits/historico', (req, res) => {
   }
 });
 
+// ---------- Quiosque e lixeiras físicas simuladas ----------
+
+app.get('/api/kiosk/bins', async (_req, res) => {
+  try {
+    const db = await readDB();
+    res.json(db.bins
+      .filter((bin) => bin.status !== 'offline')
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+      .map((bin) => ({ id: bin.id, name: bin.name, location: bin.location, capacity: bin.capacity_pct, status: bin.status })));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/kiosk/users/:code', async (req, res) => {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    const db = await readDB();
+    const user = db.users.find((item) => item.kiosk_code === code);
+    if (!user) return res.status(404).json({ error: 'Código QR não encontrado' });
+    res.json({ id: user.id, name: user.name, points: user.points, kioskCode: user.kiosk_code });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ---------- Leaderboard ----------
 
-app.get('/api/leaderboard/global', (_req, res) => {
+app.get('/api/leaderboard/global', async (_req, res) => {
   try {
-    const db = readDB();
+    const db = await readDB();
 
     const rows = db.users
       .map((user) => ({
@@ -292,10 +314,10 @@ app.get('/api/leaderboard/global', (_req, res) => {
   }
 });
 
-app.get('/api/user/ranking/:userId', (req, res) => {
+app.get('/api/user/ranking/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const db = readDB();
+    const db = await readDB();
 
     const user = db.users.find((u) => u.id === userId);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -309,28 +331,89 @@ app.get('/api/user/ranking/:userId', (req, res) => {
 
 // ---------- Admin ----------
 
-app.get('/api/admin/global-stats', (_req, res) => {
+app.get('/api/admin/bins', async (_req, res) => {
   try {
-    const db = readDB();
-
-    const totalColleges = db.users.length;
-    const approved = db.deposits.filter((d) => d.status === 'approved');
-    const totalDeposits = approved.length;
-    const todayDeposits = approved.filter((d) => isSameDay(d.created_at)).length;
-
-    res.json({ totalColleges, totalDeposits, todayDeposits });
+    const db = await readDB();
+    res.json([...db.bins].sort((a, b) => b.capacity_pct - a.capacity_pct));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/admin/class-rankings', (req, res) => {
+app.post('/api/admin/bins', async (req, res) => {
   try {
-    const db = readDB();
+    const { name, location } = req.body;
+    if (![name, location].every((value) => String(value || '').trim())) {
+      return res.status(400).json({ error: 'Informe nome e localização da lixeira' });
+    }
+    const db = await readDB();
+    const now = new Date().toISOString();
+    const bin = { id: uuidv4(), name: String(name).trim(), location: String(location).trim(), capacity_pct: 0, status: 'online', last_collected_at: now, created_at: now, updated_at: now };
+    db.bins.push(bin);
+    await writeDB(db);
+    res.status(201).json(bin);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/bins/update', async (req, res) => {
+  try {
+    const { binId, status, capacity } = req.body;
+    const db = await readDB();
+    const bin = db.bins.find((item) => item.id === binId);
+    if (!bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
+    if (status && !['online', 'maintenance', 'offline'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
+    if (status) bin.status = status;
+    if (capacity !== undefined) bin.capacity_pct = Math.min(100, Math.max(0, Number(capacity) || 0));
+    bin.updated_at = new Date().toISOString();
+    await writeDB(db);
+    res.json(bin);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/bins/collect', async (req, res) => {
+  try {
+    const { binId } = req.body;
+    const db = await readDB();
+    const bin = db.bins.find((item) => item.id === binId);
+    if (!bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
+    const now = new Date().toISOString();
+    bin.capacity_pct = 0;
+    bin.status = 'online';
+    bin.last_collected_at = now;
+    bin.updated_at = now;
+    await writeDB(db);
+    res.json({ success: true, bin });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/global-stats', async (_req, res) => {
+  try {
+    const db = await readDB();
+
+    const totalUsers = db.users.length;
+    const approved = db.deposits.filter((d) => d.status === 'approved');
+    const totalDeposits = approved.length;
+    const todayDeposits = approved.filter((d) => isSameDay(d.created_at)).length;
+
+    res.json({ totalUsers, totalDeposits, todayDeposits });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/user-rankings', async (_req, res) => {
+  try {
+    const db = await readDB();
     const result = db.users
-      .map((user) => ({ collegeName: user.name, points: Number(user.points) || 0 }))
-      .sort((a, b) => b.points - a.points || a.collegeName.localeCompare(b.collegeName, 'pt-BR'))
-      .map((college, index) => ({ ...college, rank: index + 1 }));
+      .map((user) => ({ userName: user.name, points: Number(user.points) || 0 }))
+      .sort((a, b) => b.points - a.points || a.userName.localeCompare(b.userName, 'pt-BR'))
+      .map((user, index) => ({ ...user, rank: index + 1 }));
 
     res.json(result);
   } catch (error) {
@@ -338,9 +421,9 @@ app.get('/api/admin/class-rankings', (req, res) => {
   }
 });
 
-app.get('/api/admin/pending-deposits', (req, res) => {
+app.get('/api/admin/pending-deposits', async (req, res) => {
   try {
-    const db = readDB();
+    const db = await readDB();
 
     const rows = db.deposits
       .filter((d) => d.status === 'pending')
@@ -351,7 +434,6 @@ app.get('/api/admin/pending-deposits', (req, res) => {
           id: d.id,
           user_id: d.user_id,
           userName: user?.name ?? '—',
-          class_name: user?.class_name ?? '—',
           wasteType: d.item_type,
           quantity: d.quantity,
           weight: d.weight_delta,
@@ -367,10 +449,10 @@ app.get('/api/admin/pending-deposits', (req, res) => {
   }
 });
 
-app.post('/api/admin/approve-deposit', (req, res) => {
+app.post('/api/admin/approve-deposit', async (req, res) => {
   try {
     const { depositId, points } = req.body;
-    const db = readDB();
+    const db = await readDB();
 
     const deposit = db.deposits.find((d) => d.id === depositId);
     if (!deposit) return res.status(404).json({ error: 'Depósito não encontrado' });
@@ -382,17 +464,17 @@ app.post('/api/admin/approve-deposit', (req, res) => {
     const user = db.users.find((u) => u.id === deposit.user_id);
     if (user) user.points = (user.points || 0) + points;
 
-    writeDB(db);
+    await writeDB(db);
     res.json({ success: true, message: 'Depósito aprovado com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/admin/reject-deposit', (req, res) => {
+app.post('/api/admin/reject-deposit', async (req, res) => {
   try {
     const { depositId } = req.body;
-    const db = readDB();
+    const db = await readDB();
 
     const deposit = db.deposits.find((d) => d.id === depositId);
     if (!deposit) return res.status(404).json({ error: 'Depósito não encontrado' });
@@ -400,78 +482,76 @@ app.post('/api/admin/reject-deposit', (req, res) => {
     deposit.status = 'rejected';
     deposit.updated_at = new Date().toISOString();
 
-    writeDB(db);
+    await writeDB(db);
     res.json({ success: true, message: 'Depósito rejeitado' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/admin/students', (req, res) => {
+app.get('/api/admin/users', async (_req, res) => {
   try {
-    const db = readDB();
-    const students = [...db.users]
+    const db = await readDB();
+    const users = [...db.users]
       .sort((a, b) => b.points - a.points)
       .map((u) => ({
         id: u.id,
         name: u.name,
-        matricula: u.matricula,
         email: u.email,
-        class_name: u.class_name,
         points: u.points,
         created_at: u.created_at,
       }));
 
-    res.json(students);
+    res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/admin/delete-college', (req, res) => {
+app.post('/api/admin/delete-college', async (req, res) => {
   try {
     const { userId } = req.body;
-    const db = readDB();
+    const db = await readDB();
     const userIndex = db.users.findIndex((user) => user.id === userId);
 
-    if (userIndex === -1) return res.status(404).json({ error: 'Colégio não encontrado' });
+    if (userIndex === -1) return res.status(404).json({ error: 'Usuário não encontrado' });
 
     const [removedCollege] = db.users.splice(userIndex, 1);
     const depositsBefore = db.deposits.length;
     db.deposits = db.deposits.filter((deposit) => deposit.user_id !== userId);
     const removedDeposits = depositsBefore - db.deposits.length;
 
-    writeDB(db);
-    res.json({ success: true, collegeName: removedCollege.name, removedDeposits });
+    await writeDB(db);
+    res.json({ success: true, userName: removedCollege.name, removedDeposits });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/admin/reset-college-impact', (req, res) => {
+app.post('/api/admin/reset-college-impact', async (req, res) => {
   try {
     const { userId } = req.body;
-    const db = readDB();
-    const college = db.users.find((user) => user.id === userId);
+    const db = await readDB();
+    const account = db.users.find((user) => user.id === userId);
 
-    if (!college) return res.status(404).json({ error: 'Colégio não encontrado' });
+    if (!account) return res.status(404).json({ error: 'Usuário não encontrado' });
 
-    college.points = 0;
+    account.points = 0;
     const depositsBefore = db.deposits.length;
     db.deposits = db.deposits.filter((deposit) => deposit.user_id !== userId);
     const removedDeposits = depositsBefore - db.deposits.length;
 
-    writeDB(db);
-    res.json({ success: true, collegeName: college.name, removedDeposits, points: college.points });
+    await writeDB(db);
+    res.json({ success: true, userName: account.name, removedDeposits, points: account.points });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/admin/add-points', (req, res) => {
+app.post('/api/admin/add-points', async (req, res) => {
   try {
     const { userId, points, reason } = req.body;
-    const db = readDB();
+    const db = await readDB();
 
     const user = db.users.find((u) => u.id === userId);
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -492,7 +572,7 @@ app.post('/api/admin/add-points', (req, res) => {
       timestamp_client: now,
     });
 
-    writeDB(db);
+    await writeDB(db);
     res.json({ success: true, message: 'Pontos adicionados com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -581,8 +661,19 @@ app.post('/api/assistant/chat', async (req, res) => {
   return res.json({ role: 'assistant', content: localAssistantFallback(lastUserMessage), source: 'local-fallback' });
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
-  console.log(`💾 Dados salvos em server/database/db.json (sem banco de dados externo)`);
-  console.log(`📅 Senha admin de hoje: ${generateAdminPassword()}`);
-});
+async function startServer() {
+  try {
+    await initDatabase();
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
+      console.log('🐘 Dados persistidos em PostgreSQL');
+      console.log(`📅 Senha admin de hoje: ${generateAdminPassword()}`);
+    });
+  } catch (error) {
+    console.error('❌ Não foi possível iniciar o PostgreSQL:', error.message);
+    console.error('Configure DATABASE_URL em server/.env e execute a migração dos dados.');
+    process.exitCode = 1;
+  }
+}
+
+startServer();

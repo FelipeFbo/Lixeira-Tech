@@ -40,7 +40,7 @@ export default function Dashboard() {
 
   const approved = deposits.filter((d) => d.status === "approved");
   const impact = calculateAggregateImpact(approved);
-  const collegeName = stats?.collegeName || user?.name || user?.class_name || "Colégio";
+  const userName = stats?.userName || user?.name || "Usuário";
   const totalPoints = stats?.totalPoints ?? user?.points ?? 0;
   const streakDays = calculateStreakDays(approved);
   const achievements = evaluateAchievements({ deposits: approved, impact, points: totalPoints });
@@ -50,7 +50,7 @@ export default function Dashboard() {
       <section className="dashboard-hero">
         <p className="eyebrow">Seu impacto</p>
         <h1 className="display dashboard-title">
-          {loading ? "Calculando seu impacto…" : collegeName}
+          {loading ? "Calculando seu impacto…" : userName}
         </h1>
 
         <div className="dashboard-stats">
@@ -63,11 +63,18 @@ export default function Dashboard() {
           <PointsBadge points={stats?.totalPoints ?? user?.points ?? 0} />
           <Button as={Link} to="/depositar">Registrar novo depósito</Button>
         </div>
+
+        {user?.kioskCode && (
+          <div className="dashboard-kiosk-code">
+            <div className="dashboard-qr" aria-hidden="true"><span /></div>
+            <div><p className="eyebrow">Seu acesso ao quiosque</p><strong className="mono">{user.kioskCode}</strong><p className="text-dim">Use este código na lixeira física ou abra o modo simulado.</p><Link to="/quiosque" className="text-accent mono">abrir quiosque →</Link></div>
+          </div>
+        )}
       </section>
 
       <section className="dashboard-grid">
         <Card className="dashboard-ranking-card">
-          <p className="eyebrow">Ranking de colégios</p>
+          <p className="eyebrow">Ranking da comunidade</p>
           <div className="dashboard-ranking-row">
             <span className="text-dim">Posição global</span>
             <span className="mono">#{ranking?.global ?? "—"}</span>
