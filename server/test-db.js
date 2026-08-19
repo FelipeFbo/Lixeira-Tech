@@ -1,10 +1,12 @@
-import { db } from './db.js';
+import { initDatabase, pool } from './db.js';
 
 try {
-    const [rows] = await db.query('SELECT NOW() AS now');
-    console.log('✅ Conexão bem-sucedida!', rows[0].now);
-    process.exit(0);
+    await initDatabase();
+    const { rows } = await pool.query('SELECT NOW() AS now');
+    console.log('✅ Conexão PostgreSQL bem-sucedida!', rows[0].now);
 } catch (err) {
-    console.error('❌ Erro ao conectar no MariaDB:', err);
-    process.exit(1);
+    console.error('❌ Erro ao conectar no PostgreSQL:', err.message);
+    process.exitCode = 1;
+} finally {
+    await pool.end();
 }

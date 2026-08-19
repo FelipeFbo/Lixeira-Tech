@@ -5,9 +5,9 @@ import { AVG_CO2_PER_POINT_SAFE } from "../../lib/impact";
 import "./ImpactPreview.css";
 
 // /api/leaderboard/global retorna apenas pontos (dado técnico), sem o
-// histórico de depósitos de cada colégio — por isso usamos aqui a mesma
+// histórico de depósitos de cada pessoa — por isso usamos aqui a mesma
 // estimativa média documentada em lib/impact.js, só para efeito ilustrativo.
-// O valor exato de cada colégio aparece no dashboard, calculado a partir do
+// O valor exato de cada pessoa aparece no dashboard, calculado a partir do
 // histórico real de depósitos.
 
 /**
@@ -67,7 +67,7 @@ export function ImpactPreview() {
         );
       })}
       <p className="impact-preview-note mono text-faint">
-        estimativa ilustrativa — o impacto exato de cada colégio aparece no dashboard
+        estimativa ilustrativa — o impacto exato de cada pessoa aparece no dashboard
       </p>
     </div>
   );

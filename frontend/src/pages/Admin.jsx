@@ -11,8 +11,9 @@ const TABS = [
   { key: "overview", label: "Visão geral" },
   { key: "deposits", label: "Depósitos" },
   { key: "pending", label: "Aprovações" },
-  { key: "students", label: "Colégios" },
-  { key: "classes", label: "Ranking por colégio" },
+  { key: "bins", label: "Lixeiras" },
+  { key: "students", label: "Usuários" },
+  { key: "classes", label: "Ranking geral" },
 ];
 
 const DASHBOARD_PERIODS = [
@@ -30,6 +31,7 @@ export default function Admin() {
   const [globalStats, setGlobalStats] = useState(null);
   const [pending, setPending] = useState([]);
   const [deposits, setDeposits] = useState([]);
+  const [bins, setBins] = useState([]);
   const [students, setStudents] = useState([]);
   const [classRankings, setClassRankings] = useState([]);
   const [pointsDraft, setPointsDraft] = useState({});
@@ -38,13 +40,15 @@ export default function Admin() {
   const [dashboardPeriod, setDashboardPeriod] = useState("all");
   const [dashboardCategory, setDashboardCategory] = useState(null);
   const [dashboardMetric, setDashboardMetric] = useState("co2Kg");
+  const [binForm, setBinForm] = useState({ name: "", location: "" });
 
   function loadAll() {
     api.admin.globalStats().then(setGlobalStats).catch(() => {});
     api.admin.pendingDeposits().then(setPending).catch(() => {});
     api.admin.depositsHistory().then(setDeposits).catch(() => {});
-    api.admin.students().then(setStudents).catch(() => {});
-    api.admin.classRankings().then(setClassRankings).catch(() => {});
+    api.admin.bins().then(setBins).catch(() => {});
+    api.admin.users().then(setStudents).catch(() => {});
+    api.admin.userRankings().then(setClassRankings).catch(() => {});
   }
 
   useEffect(loadAll, []);
@@ -77,7 +81,25 @@ export default function Admin() {
     if (!points) return;
     await api.admin.addPoints(studentId, points, "Pontos manuais (admin)");
     setAddPointsDraft((prev) => ({ ...prev, [studentId]: "" }));
-    api.admin.students().then(setStudents).catch(() => {});
+    api.admin.users().then(setStudents).catch(() => {});
+  }
+
+  async function collectBin(binId) {
+    await api.admin.collectBin(binId);
+    loadAll();
+  }
+
+  async function changeBinStatus(binId, status) {
+    await api.admin.updateBin(binId, { status });
+    loadAll();
+  }
+
+  async function createBin(event) {
+    event.preventDefault();
+    if (!binForm.name.trim() || !binForm.location.trim()) return;
+    await api.admin.createBin(binForm.name, binForm.location);
+    setBinForm({ name: "", location: "" });
+    loadAll();
   }
 
   const periodStart = dashboardPeriod === "all"
@@ -123,6 +145,7 @@ export default function Admin() {
     return { key, label: date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""), co2Kg: impact.co2Kg, deposits: dayDeposits.length };
   });
   const maxWeeklyCo2 = Math.max(...weeklyActivity.map((day) => day.co2Kg), 1);
+  const attentionBins = bins.filter((bin) => bin.capacity_pct >= 80 || bin.status !== "online");
 
   return (
     <div className="admin container">
@@ -130,9 +153,10 @@ export default function Admin() {
       <h1 className="display admin-title">Gestão da Lixeira Tech</h1>
 
       <div className="admin-stats-grid">
-        <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalColleges ?? "—"}</span><p className="text-dim">colégios cadastrados</p></Card>
+        <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalUsers ?? "—"}</span><p className="text-dim">usuários cadastrados</p></Card>
         <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalDeposits ?? "—"}</span><p className="text-dim">depósitos aprovados</p></Card>
         <Card><span className="mono fs-mono-lg text-accent">{globalStats?.todayDeposits ?? "—"}</span><p className="text-dim">depósitos hoje</p></Card>
+        <Card><span className="mono fs-mono-lg admin-dashboard-pending">{attentionBins.length}</span><p className="text-dim">lixeiras exigem atenção</p></Card>
       </div>
 
       <div className="admin-tabs">
@@ -281,13 +305,13 @@ export default function Admin() {
 
           <div className="admin-dashboard-grid">
             <Card className="admin-dashboard-card">
-              <p className="eyebrow">Ranking de colégios</p>
+              <p className="eyebrow">Ranking da comunidade</p>
               <ol className="admin-dashboard-ranking admin-ranking-chart">
-                {classRankings.slice(0, 5).map((college) => (
-                  <li key={college.collegeName}>
-                    <span className="mono text-faint">#{college.rank}</span>
-                    <span className="admin-ranking-chart-name">{college.collegeName}<span className="admin-ranking-chart-track"><span style={{ width: `${(college.points / maxRankingPoints) * 100}%` }} /></span></span>
-                    <strong className="mono text-accent">{college.points} pts</strong>
+                {classRankings.slice(0, 5).map((account) => (
+                  <li key={account.userName}>
+                    <span className="mono text-faint">#{account.rank}</span>
+                    <span className="admin-ranking-chart-name">{account.userName}<span className="admin-ranking-chart-track"><span style={{ width: `${(account.points / maxRankingPoints) * 100}%` }} /></span></span>
+                    <strong className="mono text-accent">{account.points} pts</strong>
                   </li>
                 ))}
               </ol>
@@ -361,7 +385,7 @@ export default function Admin() {
         <div className="admin-panel">
           <table className="admin-table">
             <thead>
-              <tr><th>Colégio</th><th>Pontos</th><th>Adicionar pontos</th></tr>
+              <tr><th>Usuário</th><th>Pontos</th><th>Adicionar pontos</th></tr>
             </thead>
             <tbody>
               {students.map((s) => (
@@ -396,8 +420,9 @@ export default function Admin() {
               <table className="admin-table admin-deposits-table">
                 <thead>
                   <tr>
-                    <th>Colégio</th>
+                    <th>Usuário</th>
                     <th>Depósito</th>
+                    <th>Lixeira</th>
                     <th>Impacto</th>
                     <th>Observações</th>
                     <th>Data</th>
@@ -415,6 +440,7 @@ export default function Admin() {
                         <strong>{d.wasteType}</strong>
                         <span className="admin-table-detail text-dim mono">{d.quantity} item(ns) · {d.weight} kg</span>
                       </td>
+                      <td className="text-dim">{d.binName}</td>
                       <td>
                         <div className="admin-impact-details mono">
                           <span>{impact.ewasteKg} kg e-lixo</span>
@@ -436,15 +462,34 @@ export default function Admin() {
         </div>
       )}
 
+      {tab === "bins" && (
+        <section className="admin-bins">
+          <div className="admin-bins-header"><div><p className="eyebrow">Infraestrutura simulada</p><h2 className="display">Lixeiras físicas</h2></div><p className="text-dim">Capacidade é atualizada a cada depósito do quiosque.</p></div>
+          {attentionBins.length > 0 && <div className="admin-bin-alert"><strong>{attentionBins.length} alerta(s)</strong><span>{attentionBins.map((bin) => `${bin.name}: ${bin.status !== "online" ? "indisponível" : `${bin.capacity_pct}% cheia`}`).join(" · ")}</span></div>}
+          <div className="admin-bin-map" aria-label="Mapa ilustrativo das lixeiras cadastradas"><div><p className="eyebrow">Mapa de operação</p><strong>Unidades cadastradas</strong></div><div className="admin-bin-map-canvas">{bins.map((bin, index) => <span key={bin.id} className={`status-${bin.status}`} style={{ "--map-x": `${18 + ((index * 31) % 66)}%`, "--map-y": `${24 + ((index * 23) % 55)}%` }} title={`${bin.name} — ${bin.location}`}><i />{bin.name}</span>)}</div></div>
+          <div className="admin-bins-grid">
+            {bins.map((bin) => (
+              <Card key={bin.id} className={`admin-bin-card status-${bin.status}`}>
+                <div className="admin-bin-card-head"><div><p className="eyebrow">{bin.status === "online" ? "Online" : bin.status === "maintenance" ? "Em manutenção" : "Offline"}</p><h3 className="display">{bin.name}</h3><p className="text-dim">{bin.location}</p></div><span className="admin-bin-capacity mono">{bin.capacity_pct}%</span></div>
+                <div className="admin-bin-meter"><span style={{ width: `${bin.capacity_pct}%` }} /></div>
+                <p className="text-dim">Última coleta: {bin.last_collected_at ? new Date(bin.last_collected_at).toLocaleDateString("pt-BR") : "—"}</p>
+                <div className="admin-bin-actions"><select value={bin.status} onChange={(event) => changeBinStatus(bin.id, event.target.value)}><option value="online">Online</option><option value="maintenance">Manutenção</option><option value="offline">Offline</option></select><Button variant="ghost" onClick={() => collectBin(bin.id)}>Registrar coleta</Button></div>
+              </Card>
+            ))}
+          </div>
+          <form className="admin-bin-create" onSubmit={createBin}><p className="eyebrow">Adicionar unidade simulada</p><Input value={binForm.name} onChange={(event) => setBinForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Nome da lixeira" /><Input value={binForm.location} onChange={(event) => setBinForm((prev) => ({ ...prev, location: event.target.value }))} placeholder="Localização" /><Button type="submit">Adicionar lixeira</Button></form>
+        </section>
+      )}
+
       {tab === "classes" && (
         <div className="admin-panel">
-          {classRankings.length === 0 && <p className="text-dim">Nenhum colégio cadastrado ainda.</p>}
+          {classRankings.length === 0 && <p className="text-dim">Nenhum usuário cadastrado ainda.</p>}
           <ol className="admin-college-ranking">
           {classRankings.map((c) => (
-            <li key={c.collegeName} className="admin-college-ranking-row">
+            <li key={c.userName} className="admin-college-ranking-row">
               <span className="admin-college-rank mono">#{c.rank}</span>
               <div>
-                <h3 className="display">{c.collegeName}</h3>
+                <h3 className="display">{c.userName}</h3>
               </div>
               <span className="mono text-accent admin-college-points">{c.points} pts</span>
             </li>
