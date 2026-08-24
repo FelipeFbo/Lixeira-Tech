@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   matricula TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL UNIQUE,
+  phone TEXT NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
   class_name TEXT NOT NULL,
   kiosk_code TEXT UNIQUE,

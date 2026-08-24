@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { useAuth } from "../store/AuthContext";
 import "./Auth.css";
 
-const EMPTY = { name: "", email: "", password: "" };
+const EMPTY = { name: "", phone: "", email: "", password: "" };
 
 export default function Signup() {
   const { signup, loading } = useAuth();
@@ -43,6 +43,9 @@ export default function Signup() {
           <form onSubmit={handleSubmit} noValidate>
             <Field label="Nome completo">
               <Input required value={form.name} onChange={update("name")} placeholder="Ex: Ana Silva" />
+            </Field>
+            <Field label="Telefone">
+              <Input type="tel" inputMode="tel" required value={form.phone} onChange={update("phone")} placeholder="Ex: (45) 99999-9999" />
             </Field>
             <Field label="E-mail">
               <Input type="email" required value={form.email} onChange={update("email")} placeholder="voce@email.com" />

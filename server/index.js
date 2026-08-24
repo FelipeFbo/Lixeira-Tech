@@ -7,7 +7,7 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { initDatabase, readDB, writeDB } from './db.js';
+import { initDatabase, readDB, updateBinById, writeDB } from './db.js';
 
 const app = express();
 const PORT = 3001;
@@ -69,11 +69,11 @@ function publicUser(user) {
 
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, password } = req.body;
     const db = await readDB();
 
-    if (![name, email, password].every((value) => String(value || '').trim())) {
-      return res.status(400).json({ error: 'Preencha nome, e-mail e senha' });
+    if (![name, email, phone, password].every((value) => String(value || '').trim())) {
+      return res.status(400).json({ error: 'Preencha nome, telefone, e-mail e senha' });
     }
 
     const normalizedName = String(name || '').trim().toLocaleLowerCase('pt-BR');
@@ -93,6 +93,7 @@ app.post('/api/auth/signup', async (req, res) => {
       name,
       matricula: '',
       email,
+      phone: String(phone).trim(),
       password_hash,
       class_name: name,
       points: 0,
@@ -334,7 +335,12 @@ app.get('/api/user/ranking/:userId', async (req, res) => {
 app.get('/api/admin/bins', async (_req, res) => {
   try {
     const db = await readDB();
-    res.json([...db.bins].sort((a, b) => b.capacity_pct - a.capacity_pct));
+    // A posição visual de cada cartão e ponto no mapa deve permanecer estável.
+    // Ordenar por criação (e ID como desempate) evita trocar unidades de lugar
+    // depois que uma coleta altera a capacidade de apenas uma delas.
+    res.json([...db.bins].sort((a, b) =>
+      new Date(a.created_at) - new Date(b.created_at) || String(a.id).localeCompare(String(b.id))
+    ));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -360,14 +366,10 @@ app.post('/api/admin/bins', async (req, res) => {
 app.post('/api/admin/bins/update', async (req, res) => {
   try {
     const { binId, status, capacity } = req.body;
-    const db = await readDB();
-    const bin = db.bins.find((item) => item.id === binId);
-    if (!bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
     if (status && !['online', 'maintenance', 'offline'].includes(status)) return res.status(400).json({ error: 'Status inválido' });
-    if (status) bin.status = status;
-    if (capacity !== undefined) bin.capacity_pct = Math.min(100, Math.max(0, Number(capacity) || 0));
-    bin.updated_at = new Date().toISOString();
-    await writeDB(db);
+    const normalizedCapacity = capacity === undefined ? undefined : Math.min(100, Math.max(0, Number(capacity) || 0));
+    const bin = await updateBinById(binId, { status, capacity: normalizedCapacity });
+    if (!bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
     res.json(bin);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -377,15 +379,8 @@ app.post('/api/admin/bins/update', async (req, res) => {
 app.post('/api/admin/bins/collect', async (req, res) => {
   try {
     const { binId } = req.body;
-    const db = await readDB();
-    const bin = db.bins.find((item) => item.id === binId);
+    const bin = await updateBinById(binId, { collect: true });
     if (!bin) return res.status(404).json({ error: 'Lixeira não encontrada' });
-    const now = new Date().toISOString();
-    bin.capacity_pct = 0;
-    bin.status = 'online';
-    bin.last_collected_at = now;
-    bin.updated_at = now;
-    await writeDB(db);
     res.json({ success: true, bin });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -426,13 +421,15 @@ app.get('/api/admin/pending-deposits', async (req, res) => {
     const db = await readDB();
 
     const rows = db.deposits
-      .filter((d) => d.status === 'pending')
+      .filter((d) => d.status === 'pending' && !d.collected_at)
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
       .map((d) => {
         const user = db.users.find((u) => u.id === d.user_id);
         return {
           id: d.id,
           user_id: d.user_id,
+          binId: d.bin_id || null,
+          binName: db.bins.find((bin) => bin.id === d.bin_id)?.name || 'Depósito manual',
           userName: user?.name ?? '—',
           wasteType: d.item_type,
           quantity: d.quantity,
@@ -498,6 +495,7 @@ app.get('/api/admin/users', async (_req, res) => {
         id: u.id,
         name: u.name,
         email: u.email,
+        phone: u.phone || '',
         points: u.points,
         created_at: u.created_at,
       }));

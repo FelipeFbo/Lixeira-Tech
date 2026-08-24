@@ -29,6 +29,7 @@ const schema = `
     name TEXT NOT NULL,
     matricula TEXT NOT NULL DEFAULT '',
     email TEXT NOT NULL UNIQUE,
+    phone TEXT NOT NULL DEFAULT '',
     password_hash TEXT NOT NULL,
     class_name TEXT NOT NULL,
     points INTEGER NOT NULL DEFAULT 0,
@@ -37,6 +38,7 @@ const schema = `
   );
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS kiosk_code TEXT UNIQUE;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
   UPDATE users
     SET kiosk_code = UPPER(SUBSTRING(REPLACE(id, '-', '') FROM 1 FOR 8))
     WHERE kiosk_code IS NULL;
@@ -68,6 +70,7 @@ const schema = `
   );
 
   ALTER TABLE deposits ADD COLUMN IF NOT EXISTS bin_id TEXT REFERENCES collection_bins(id) ON DELETE SET NULL;
+  ALTER TABLE deposits ADD COLUMN IF NOT EXISTS collected_at TIMESTAMPTZ;
 
   CREATE INDEX IF NOT EXISTS deposits_user_id_idx ON deposits (user_id);
   CREATE INDEX IF NOT EXISTS deposits_status_created_at_idx ON deposits (status, created_at DESC);
@@ -115,6 +118,7 @@ function normalizeDeposit(deposit) {
     created_at: toIso(deposit.created_at),
     updated_at: toIso(deposit.updated_at),
     timestamp_client: toIso(deposit.timestamp_client),
+    collected_at: toIso(deposit.collected_at),
   };
 }
 
@@ -133,6 +137,53 @@ export async function readDB() {
   };
 }
 
+// Atualizações de uma lixeira são feitas diretamente pelo ID. Isso evita que
+// uma coleta sobrescreva o estado das demais unidades em ações simultâneas.
+export async function updateBinById(binId, { status, capacity, collect = false } = {}) {
+  if (collect) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE collection_bins
+         SET capacity_pct = 0, status = 'online', last_collected_at = NOW(), updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [binId],
+      );
+      if (!result.rows[0]) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+      await client.query(
+        `UPDATE deposits
+         SET collected_at = NOW(), updated_at = NOW()
+         WHERE bin_id = $1 AND status = 'pending' AND collected_at IS NULL`,
+        [binId],
+      );
+      await client.query('COMMIT');
+      return normalizeBin(result.rows[0]);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  const result = await pool.query(
+        `UPDATE collection_bins
+         SET status = COALESCE($2, status),
+             capacity_pct = COALESCE($3, capacity_pct),
+             updated_at = NOW()
+         WHERE id = $1
+         RETURNING *`,
+        [binId, status ?? null, capacity ?? null],
+      );
+
+  return result.rows[0] ? normalizeBin(result.rows[0]) : null;
+}
+
 // As operações administrativas alteram o conjunto em memória e são persistidas
 // em uma única transação, garantindo consistência entre pontos e depósitos.
 export async function writeDB(db) {
@@ -145,9 +196,9 @@ export async function writeDB(db) {
 
     for (const user of db.users) {
       await client.query(
-        `INSERT INTO users (id, name, matricula, email, password_hash, class_name, points, kiosk_code, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [user.id, user.name, user.matricula || '', user.email, user.password_hash, user.class_name || user.name, Number(user.points) || 0, user.kiosk_code, user.created_at],
+        `INSERT INTO users (id, name, matricula, email, phone, password_hash, class_name, points, kiosk_code, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [user.id, user.name, user.matricula || '', user.email, user.phone || '', user.password_hash, user.class_name || user.name, Number(user.points) || 0, user.kiosk_code, user.created_at],
       );
     }
 
@@ -162,8 +213,8 @@ export async function writeDB(db) {
     for (const deposit of db.deposits) {
       await client.query(
         `INSERT INTO deposits
-          (id, user_id, bin_id, item_type, quantity, weight_delta, status, points, description, created_at, updated_at, timestamp_client)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          (id, user_id, bin_id, item_type, quantity, weight_delta, status, points, description, created_at, updated_at, timestamp_client, collected_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           deposit.id,
           deposit.user_id,
@@ -177,6 +228,7 @@ export async function writeDB(db) {
           deposit.created_at,
           deposit.updated_at || deposit.created_at,
           deposit.timestamp_client || deposit.created_at,
+          deposit.collected_at || null,
         ],
       );
     }

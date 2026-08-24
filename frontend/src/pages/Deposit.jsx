@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../store/AuthContext";
 import { api } from "../lib/api";
@@ -17,8 +17,24 @@ export default function Deposit() {
   const [form, setForm] = useState({ weight: "", quantity: "1", description: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [deposits, setDeposits] = useState([]);
+  const [loadingDeposits, setLoadingDeposits] = useState(true);
 
   const impactPreview = calculateImpact(Number(form.weight) || 0, category?.key);
+
+  async function loadDeposits() {
+    if (!user?.id) return;
+    try {
+      setLoadingDeposits(true);
+      setDeposits(await api.deposits.listByUser(user.id));
+    } catch {
+      setDeposits([]);
+    } finally {
+      setLoadingDeposits(false);
+    }
+  }
+
+  useEffect(() => { loadDeposits(); }, [user?.id]);
 
   function pickCategory(cat) {
     setCategory(cat);
@@ -37,6 +53,7 @@ export default function Deposit() {
         weight: Number(form.weight),
         description: form.description,
       });
+      await loadDeposits();
       setStep(STEPS.DONE);
     } catch (err) {
       setError(err.message);
@@ -164,6 +181,29 @@ export default function Deposit() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {step === STEPS.PICK && (
+        <section className="deposit-history" aria-labelledby="deposit-history-title">
+          <div className="deposit-history-heading">
+            <div><p className="eyebrow">Acompanhe seus registros</p><h2 id="deposit-history-title" className="display">Seus depósitos</h2></div>
+            {!loadingDeposits && <span className="mono text-dim">{deposits.length} registro(s)</span>}
+          </div>
+          {loadingDeposits ? (
+            <p className="text-dim mono">Carregando histórico…</p>
+          ) : deposits.length === 0 ? (
+            <div className="deposit-history-empty"><LineIcon name="leaf" size={26} /><p className="text-dim">Você ainda não registrou depósitos. Escolha um item acima para começar.</p></div>
+          ) : (
+            <div className="deposit-history-list">
+              {deposits.slice(0, 6).map((deposit) => (
+                <article key={deposit.id} className="deposit-history-row">
+                  <div><strong>{deposit.wasteType}</strong><p className="mono text-dim">{deposit.quantity} item(ns) · {Number(deposit.weight).toLocaleString("pt-BR")} kg{deposit.binName ? ` · ${deposit.binName}` : ""}</p></div>
+                  <div className="deposit-history-meta"><span className={`deposit-status status-${deposit.status}`}>{deposit.status === "approved" ? "Aprovado" : deposit.status === "rejected" ? "Recusado" : "Em análise"}</span><time className="mono text-dim">{new Date(deposit.date).toLocaleDateString("pt-BR")}</time></div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }

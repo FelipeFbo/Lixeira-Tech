@@ -41,6 +41,7 @@ export default function Admin() {
   const [dashboardCategory, setDashboardCategory] = useState(null);
   const [dashboardMetric, setDashboardMetric] = useState("co2Kg");
   const [binForm, setBinForm] = useState({ name: "", location: "" });
+  const [managedBin, setManagedBin] = useState(null);
 
   function loadAll() {
     api.admin.globalStats().then(setGlobalStats).catch(() => {});
@@ -146,6 +147,7 @@ export default function Admin() {
   });
   const maxWeeklyCo2 = Math.max(...weeklyActivity.map((day) => day.co2Kg), 1);
   const attentionBins = bins.filter((bin) => bin.capacity_pct >= 80 || bin.status !== "online");
+  const managedBinDeposits = managedBin ? pending.filter((deposit) => deposit.binId === managedBin.id) : [];
 
   return (
     <div className="admin container">
@@ -182,28 +184,6 @@ export default function Admin() {
           </div>
 
           <div className="admin-dashboard-layout">
-            <aside className="admin-dashboard-rail">
-              <div>
-                <p className="eyebrow">Central de controle</p>
-                <h3 className="display">Avaliação em tempo real</h3>
-              </div>
-              <div className="admin-dashboard-gauges">
-                <div className="admin-dashboard-gauge" style={{ "--gauge-value": `${approvalRate * 3.6}deg` }}>
-                  <span className="mono">{approvalRate}%</span>
-                  <small>aprovação</small>
-                </div>
-                <div className="admin-dashboard-gauge admin-dashboard-gauge-cyan" style={{ "--gauge-value": `${Math.min(reviewedInPeriod * 18, 360)}deg` }}>
-                  <span className="mono">{reviewedInPeriod}</span>
-                  <small>avaliados</small>
-                </div>
-              </div>
-              <div className="admin-dashboard-rail-status">
-                <span className="text-dim">Fila atual</span>
-                <strong className="mono">{pending.length} pendente(s)</strong>
-              </div>
-              <Button variant="ghost" onClick={() => setTab("pending")}>Abrir aprovações</Button>
-            </aside>
-
             <div className="admin-dashboard-main">
           <div className="admin-dashboard-controls" aria-label="Período do dashboard">
             {DASHBOARD_PERIODS.map((period) => (
@@ -218,11 +198,11 @@ export default function Admin() {
           </div>
 
           <div className="admin-dashboard-stats">
-            <Card><span className="mono fs-mono-lg text-accent">{approvedInPeriod.length}</span><p className="text-dim">depósitos aprovados</p></Card>
-            <Card><span className="mono fs-mono-lg admin-dashboard-pending">{pendingInPeriod.length}</span><p className="text-dim">aguardando avaliação</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.ewasteKg} kg</span><p className="text-dim">e-lixo desviado</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.co2Kg} kg</span><p className="text-dim">CO2 evitado</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.treesEquivalent.toFixed(2)}</span><p className="text-dim">árvores equivalentes</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{approvedInPeriod.length}</span><p className="text-dim">depósitos aprovados</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg admin-dashboard-pending">{pendingInPeriod.length}</span><p className="text-dim">aguardando avaliação</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.ewasteKg} kg</span><p className="text-dim">e-lixo desviado</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.co2Kg} kg</span><p className="text-dim">CO2 evitado</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.treesEquivalent.toFixed(2)}</span><p className="text-dim">árvores equivalentes</p></Card>
           </div>
 
           <div className="admin-dashboard-grid">
@@ -385,7 +365,7 @@ export default function Admin() {
         <div className="admin-panel">
           <table className="admin-table">
             <thead>
-              <tr><th>Usuário</th><th>Pontos</th><th>Adicionar pontos</th></tr>
+              <tr><th>Usuário</th><th>Pontos</th><th>Adicionar pontos</th><th>Telefone</th></tr>
             </thead>
             <tbody>
               {students.map((s) => (
@@ -404,6 +384,7 @@ export default function Admin() {
                       <Button variant="ghost" onClick={() => addManualPoints(s.id)}>Adicionar</Button>
                     </div>
                   </td>
+                  <td className="text-dim mono">{s.phone || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -473,7 +454,7 @@ export default function Admin() {
                 <div className="admin-bin-card-head"><div><p className="eyebrow">{bin.status === "online" ? "Online" : bin.status === "maintenance" ? "Em manutenção" : "Offline"}</p><h3 className="display">{bin.name}</h3><p className="text-dim">{bin.location}</p></div><span className="admin-bin-capacity mono">{bin.capacity_pct}%</span></div>
                 <div className="admin-bin-meter"><span style={{ width: `${bin.capacity_pct}%` }} /></div>
                 <p className="text-dim">Última coleta: {bin.last_collected_at ? new Date(bin.last_collected_at).toLocaleDateString("pt-BR") : "—"}</p>
-                <div className="admin-bin-actions"><select value={bin.status} onChange={(event) => changeBinStatus(bin.id, event.target.value)}><option value="online">Online</option><option value="maintenance">Manutenção</option><option value="offline">Offline</option></select><Button variant="ghost" onClick={() => collectBin(bin.id)}>Registrar coleta</Button></div>
+                <div className="admin-bin-actions"><select value={bin.status} onChange={(event) => changeBinStatus(bin.id, event.target.value)}><option value="online">Online</option><option value="maintenance">Manutenção</option><option value="offline">Offline</option></select><Button variant="ghost" onClick={() => setManagedBin(bin)}>Gerenciar lixeira</Button><Button variant="ghost" onClick={() => collectBin(bin.id)}>Registrar coleta</Button></div>
               </Card>
             ))}
           </div>
@@ -497,6 +478,19 @@ export default function Admin() {
           </ol>
         </div>
       )}
+
+      <AnimatePresence>
+        {managedBin && (
+          <motion.div className="admin-bin-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setManagedBin(null); }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.section className="admin-bin-modal" role="dialog" aria-modal="true" aria-labelledby="bin-management-title" initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }}>
+              <div className="admin-bin-modal-head"><div><p className="eyebrow">Depósitos em análise</p><h2 id="bin-management-title" className="display">{managedBin.name}</h2><p className="text-dim">{managedBin.location}</p></div><Button variant="ghost" onClick={() => setManagedBin(null)}>Fechar</Button></div>
+              <div className="admin-bin-modal-summary"><strong className="mono">{managedBinDeposits.length}</strong><span className="text-dim">depósito(s) aguardando avaliação nesta lixeira</span></div>
+              {managedBinDeposits.length === 0 ? <p className="admin-bin-modal-empty text-dim">Não há depósitos em análise nesta lixeira.</p> : <div className="admin-bin-modal-list">{managedBinDeposits.map((deposit) => <article key={deposit.id} className="admin-bin-modal-row"><div><p className="admin-bin-modal-user mono">Usuário: <strong>{deposit.userName}</strong></p><strong>{deposit.wasteType}</strong><p className="mono text-dim">{deposit.quantity} item(ns) · {deposit.weight} kg · {new Date(deposit.date).toLocaleDateString("pt-BR")}</p><p className="text-dim">{deposit.description || "Sem observações"}</p></div><span className="admin-status admin-status-pending">Em análise</span></article>)}</div>}
+              <div className="admin-bin-modal-footer"><Button variant="ghost" onClick={() => { setManagedBin(null); setTab("pending"); }}>Abrir aprovações</Button></div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
