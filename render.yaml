@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: lixeira-tech-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lixeira-tech-db
+          property: connectionString
+
+databases:
+  - name: lixeira-tech-db
+    databaseName: lixeira_tech
+    user: lixeira_tech
+    plan: free
+    postgresMajorVersion: "17"

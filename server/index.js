@@ -25,6 +25,15 @@ const CO2_FACTOR_BY_TYPE = {
 app.use(cors());
 app.use(express.json());
 
+app.get('/api/health', async (_req, res) => {
+  try {
+    await readDB();
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    res.status(503).json({ status: 'unavailable', error: error.message });
+  }
+});
+
 // ---------- Helpers ----------
 
 function generateAdminPassword(date = new Date()) {
