@@ -123,20 +123,6 @@ npm run dev
 
 Acesse `http://localhost:5173`.
 
-## ☁️ Publicação na internet
-
-O projeto usa duas hospedagens: **Netlify** para o front-end e **Render** para a API com PostgreSQL.
-
-1. No [Render](https://render.com), crie um *Blueprint* a partir deste repositório. O arquivo `render.yaml` cria a API e o banco automaticamente. Ao terminar, copie a URL pública da API, por exemplo `https://lixeira-tech-api.onrender.com`.
-2. No [Netlify](https://app.netlify.com), importe o mesmo repositório. O `netlify.toml` já define o build do React e as rotas da aplicação.
-3. Em **Project configuration → Environment variables** da Netlify, crie:
-
-```env
-VITE_API_URL=https://sua-api.onrender.com
-```
-
-4. Faça um novo deploy na Netlify. Não use `localhost` na variável, pois ele só funciona no seu computador.
-
 ## 📁 Estrutura do projeto
 
 ```
