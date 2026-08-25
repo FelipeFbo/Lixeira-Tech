@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initDatabase, readDB, updateBinById, writeDB } from './db.js';
 
 const app = express();
-const PORT = Number(process.env.PORT || 3001);
+const PORT = 3001;
 const CO2_FACTOR_BY_TYPE = {
   celular: 12.5,
   notebook: 9,
