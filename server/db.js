@@ -48,12 +48,33 @@ const schema = `
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     location TEXT NOT NULL,
+    latitude NUMERIC(9, 6),
+    longitude NUMERIC(9, 6),
     capacity_pct INTEGER NOT NULL DEFAULT 0 CHECK (capacity_pct BETWEEN 0 AND 100),
     status TEXT NOT NULL DEFAULT 'online' CHECK (status IN ('online', 'maintenance', 'offline')),
     last_collected_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
+
+  ALTER TABLE collection_bins ADD COLUMN IF NOT EXISTS latitude NUMERIC(9, 6);
+  ALTER TABLE collection_bins ADD COLUMN IF NOT EXISTS longitude NUMERIC(9, 6);
+  -- Coordenadas iniciais de demonstração dentro de Cascavel. Cada unidade
+  -- poderá ser posicionada com precisão pelo administrador no mapa.
+  UPDATE collection_bins
+  SET latitude = CASE id
+        WHEN 'bin-centro' THEN -24.955500
+        WHEN 'bin-campus' THEN -24.984000
+        WHEN 'bin-terminal' THEN -24.946000
+        ELSE -24.955500
+      END,
+      longitude = CASE id
+        WHEN 'bin-centro' THEN -53.455200
+        WHEN 'bin-campus' THEN -53.478300
+        WHEN 'bin-terminal' THEN -53.452000
+        ELSE -53.455200
+      END
+  WHERE latitude IS NULL OR longitude IS NULL;
 
   CREATE TABLE IF NOT EXISTS deposits (
     id TEXT PRIMARY KEY,
@@ -82,11 +103,11 @@ export async function initDatabase() {
   const { rows } = await pool.query('SELECT COUNT(*)::int AS total FROM collection_bins');
   if (rows[0].total === 0) {
     await pool.query(
-      `INSERT INTO collection_bins (id, name, location, capacity_pct, status, last_collected_at)
+      `INSERT INTO collection_bins (id, name, location, latitude, longitude, capacity_pct, status, last_collected_at)
        VALUES
-         ('bin-centro', 'Lixeira Centro', 'Praça Central', 28, 'online', NOW() - INTERVAL '2 days'),
-         ('bin-campus', 'Lixeira Campus', 'Universidade Municipal', 74, 'online', NOW() - INTERVAL '5 days'),
-         ('bin-terminal', 'Lixeira Terminal', 'Terminal de Ônibus', 92, 'maintenance', NOW() - INTERVAL '8 days')`,
+         ('bin-centro', 'Lixeira Centro', 'Praça Central', -24.955500, -53.455200, 28, 'online', NOW() - INTERVAL '2 days'),
+         ('bin-campus', 'Lixeira Campus', 'Universidade Municipal', -24.984000, -53.478300, 74, 'online', NOW() - INTERVAL '5 days'),
+         ('bin-terminal', 'Lixeira Terminal', 'Terminal de Ônibus', -24.946000, -53.452000, 92, 'maintenance', NOW() - INTERVAL '8 days')`,
     );
   }
 }
@@ -102,6 +123,8 @@ function normalizeUser(user) {
 function normalizeBin(bin) {
   return {
     ...bin,
+    latitude: bin.latitude === null ? null : Number(bin.latitude),
+    longitude: bin.longitude === null ? null : Number(bin.longitude),
     capacity_pct: Number(bin.capacity_pct),
     last_collected_at: toIso(bin.last_collected_at),
     created_at: toIso(bin.created_at),
@@ -204,9 +227,9 @@ export async function writeDB(db) {
 
     for (const bin of db.bins || []) {
       await client.query(
-        `INSERT INTO collection_bins (id, name, location, capacity_pct, status, last_collected_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [bin.id, bin.name, bin.location, Number(bin.capacity_pct) || 0, bin.status, bin.last_collected_at || null, bin.created_at, bin.updated_at || bin.created_at],
+        `INSERT INTO collection_bins (id, name, location, latitude, longitude, capacity_pct, status, last_collected_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [bin.id, bin.name, bin.location, bin.latitude ?? null, bin.longitude ?? null, Number(bin.capacity_pct) || 0, bin.status, bin.last_collected_at || null, bin.created_at, bin.updated_at || bin.created_at],
       );
     }
 

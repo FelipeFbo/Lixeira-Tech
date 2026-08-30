@@ -5,6 +5,7 @@ import { calculateAggregateImpact, calculateImpact } from "../lib/impact";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { BinMap } from "../components/admin/BinMap";
 import "./Admin.css";
 
 const TABS = [
@@ -40,7 +41,7 @@ export default function Admin() {
   const [dashboardPeriod, setDashboardPeriod] = useState("all");
   const [dashboardCategory, setDashboardCategory] = useState(null);
   const [dashboardMetric, setDashboardMetric] = useState("co2Kg");
-  const [binForm, setBinForm] = useState({ name: "", location: "" });
+  const [binForm, setBinForm] = useState({ name: "", location: "", latitude: "-24.955500", longitude: "-53.455200" });
   const [managedBin, setManagedBin] = useState(null);
 
   function loadAll() {
@@ -98,8 +99,8 @@ export default function Admin() {
   async function createBin(event) {
     event.preventDefault();
     if (!binForm.name.trim() || !binForm.location.trim()) return;
-    await api.admin.createBin(binForm.name, binForm.location);
-    setBinForm({ name: "", location: "" });
+    await api.admin.createBin(binForm.name, binForm.location, binForm.latitude, binForm.longitude);
+    setBinForm({ name: "", location: "", latitude: "-24.955500", longitude: "-53.455200" });
     loadAll();
   }
 
@@ -447,7 +448,7 @@ export default function Admin() {
         <section className="admin-bins">
           <div className="admin-bins-header"><div><p className="eyebrow">Infraestrutura simulada</p><h2 className="display">Lixeiras físicas</h2></div><p className="text-dim">Capacidade é atualizada a cada depósito do quiosque.</p></div>
           {attentionBins.length > 0 && <div className="admin-bin-alert"><strong>{attentionBins.length} alerta(s)</strong><span>{attentionBins.map((bin) => `${bin.name}: ${bin.status !== "online" ? "indisponível" : `${bin.capacity_pct}% cheia`}`).join(" · ")}</span></div>}
-          <div className="admin-bin-map" aria-label="Mapa ilustrativo das lixeiras cadastradas"><div><p className="eyebrow">Mapa de operação</p><strong>Unidades cadastradas</strong></div><div className="admin-bin-map-canvas">{bins.map((bin, index) => <span key={bin.id} className={`status-${bin.status}`} style={{ "--map-x": `${18 + ((index * 31) % 66)}%`, "--map-y": `${24 + ((index * 23) % 55)}%` }} title={`${bin.name} — ${bin.location}`}><i />{bin.name}</span>)}</div></div>
+          <div className="admin-bin-map" aria-label="Mapa de Cascavel com as lixeiras cadastradas"><div><p className="eyebrow">Mapa de operação</p><strong>Cascavel, Paraná</strong><p className="text-dim">Marcadores mostram a condição atual de cada unidade.</p><div className="admin-map-legend"><span><i className="online" />Online</span><span><i className="maintenance" />Manutenção</span><span><i className="offline" />Offline</span></div></div><BinMap bins={bins} onPickLocation={(point) => setBinForm((prev) => ({ ...prev, latitude: point.lat.toFixed(6), longitude: point.lng.toFixed(6) }))} /></div>
           <div className="admin-bins-grid">
             {bins.map((bin) => (
               <Card key={bin.id} className={`admin-bin-card status-${bin.status}`}>
@@ -458,7 +459,7 @@ export default function Admin() {
               </Card>
             ))}
           </div>
-          <form className="admin-bin-create" onSubmit={createBin}><p className="eyebrow">Adicionar unidade simulada</p><Input value={binForm.name} onChange={(event) => setBinForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Nome da lixeira" /><Input value={binForm.location} onChange={(event) => setBinForm((prev) => ({ ...prev, location: event.target.value }))} placeholder="Localização" /><Button type="submit">Adicionar lixeira</Button></form>
+          <form className="admin-bin-create" onSubmit={createBin}><p className="eyebrow">Adicionar unidade em Cascavel</p><Input value={binForm.name} onChange={(event) => setBinForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Nome da lixeira" /><Input value={binForm.location} onChange={(event) => setBinForm((prev) => ({ ...prev, location: event.target.value }))} placeholder="Endereço ou referência" /><Input type="number" step="0.000001" value={binForm.latitude} onChange={(event) => setBinForm((prev) => ({ ...prev, latitude: event.target.value }))} aria-label="Latitude" placeholder="Latitude" /><Input type="number" step="0.000001" value={binForm.longitude} onChange={(event) => setBinForm((prev) => ({ ...prev, longitude: event.target.value }))} aria-label="Longitude" placeholder="Longitude" /><Button type="submit">Adicionar lixeira</Button></form>
         </section>
       )}
 

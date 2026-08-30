@@ -1,0 +1,16 @@
+.kiosk-bin-selector { margin-top: 1.5rem; }
+.kiosk-bin-selector-head { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: .65rem; }
+.kiosk-bin-selector-head .kiosk-label { margin: 0; }
+.kiosk-bin-selector-head p { margin: 0; color: #b6c1b3; font-size: .86rem; line-height: 1.35; text-align: right; }
+.kiosk-bin-map { height: 18rem; overflow: hidden; border: 1px solid rgba(203,255,57,.28); border-radius: 1rem; z-index: 0; }
+.kiosk-bin-map .leaflet-popup-content-wrapper, .kiosk-bin-map .leaflet-popup-tip { color: #eef6e7; background: #101a12; }
+.kiosk-bin-map .leaflet-popup-content { display: grid; gap: .4rem; font-family: var(--font-body); }
+.kiosk-bin-map .leaflet-popup-content strong { font-family: var(--font-display); }
+.kiosk-bin-map .leaflet-popup-content button { margin-top: .35rem; border: 0; border-radius: .4rem; padding: .55rem .7rem; color: #09110a; background: #cbff39; cursor: pointer; font-family: var(--font-mono); }
+.kiosk-bin-map .leaflet-control-zoom a { color: #eef6e7; background: #101a12; border-color: rgba(203,255,57,.28); }
+
+@media (max-width: 640px) {
+  .kiosk-bin-selector-head { display: block; }
+  .kiosk-bin-selector-head p { margin-top: .45rem; text-align: left; }
+  .kiosk-bin-map { height: 16rem; }
+}

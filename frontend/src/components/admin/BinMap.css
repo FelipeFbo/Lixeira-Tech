@@ -1,0 +1,11 @@
+.bin-map-shell { min-width: 0; }
+.bin-map { height: 22rem; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); z-index: 0; }
+.bin-map .leaflet-control-zoom a { color: var(--color-text); background: var(--color-bg-elevated); border-color: var(--color-border); }
+.bin-map .leaflet-popup-content-wrapper, .bin-map .leaflet-popup-tip { color: var(--color-text); background: var(--color-bg-elevated); }
+.bin-map .leaflet-popup-content { display: grid; gap: .35rem; font-family: var(--font-sans); }
+.bin-map .leaflet-popup-content strong { font-family: var(--font-display); }
+.bin-map-hint { margin: var(--space-3) 0 0; color: var(--color-text-dim); font-size: var(--fs-body-sm); }
+
+@media (max-width: 520px) {
+  .bin-map { height: 18rem; }
+}

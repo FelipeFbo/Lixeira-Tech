@@ -31,6 +31,8 @@ export const api = {
       request("/api/auth/signup", { method: "POST", body: JSON.stringify(payload) }),
     login: (email, password) =>
       request("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    resetPassword: (email, password) =>
+      request("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ email, password }) }),
   },
 
   user: {
@@ -66,7 +68,7 @@ export const api = {
 
   admin: {
     bins: () => request("/api/admin/bins"),
-    createBin: (name, location) => request("/api/admin/bins", { method: "POST", body: JSON.stringify({ name, location }) }),
+    createBin: (name, location, latitude, longitude) => request("/api/admin/bins", { method: "POST", body: JSON.stringify({ name, location, latitude, longitude }) }),
     updateBin: (binId, changes) => request("/api/admin/bins/update", { method: "POST", body: JSON.stringify({ binId, ...changes }) }),
     collectBin: (binId) => request("/api/admin/bins/collect", { method: "POST", body: JSON.stringify({ binId }) }),
     depositsHistory: () => request("/api/admin/deposits/historico"),

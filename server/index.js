@@ -143,6 +143,41 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Redefinição local de senha. Em produção, este fluxo deve exigir um token
+// enviado ao e-mail do titular antes de permitir a troca.
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').trim();
+    const password = String(req.body?.password || '');
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Informe o e-mail e a nova senha' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres' });
+    }
+    if (email.toLowerCase() === 'admin') {
+      return res.status(400).json({ error: 'A senha do administrador não pode ser redefinida por esta tela' });
+    }
+
+    const db = await readDB();
+    const normalizedEmail = email.toLocaleLowerCase('pt-BR');
+    const user = db.users.find(
+      (item) => String(item.email || '').trim().toLocaleLowerCase('pt-BR') === normalizedEmail
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'Nenhuma conta foi encontrada com este e-mail' });
+    }
+
+    user.password_hash = bcrypt.hashSync(password, 10);
+    await writeDB(db);
+
+    res.json({ message: 'Senha redefinida com sucesso' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ---------- User stats ----------
 
 app.get('/api/user/stats/:userId', async (req, res) => {
@@ -274,7 +309,7 @@ app.get('/api/kiosk/bins', async (_req, res) => {
     res.json(db.bins
       .filter((bin) => bin.status !== 'offline')
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
-      .map((bin) => ({ id: bin.id, name: bin.name, location: bin.location, capacity: bin.capacity_pct, status: bin.status })));
+      .map((bin) => ({ id: bin.id, name: bin.name, location: bin.location, latitude: bin.latitude, longitude: bin.longitude, capacity: bin.capacity_pct, status: bin.status })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -348,13 +383,19 @@ app.get('/api/admin/bins', async (_req, res) => {
 
 app.post('/api/admin/bins', async (req, res) => {
   try {
-    const { name, location } = req.body;
+    const { name, location, latitude, longitude } = req.body;
     if (![name, location].every((value) => String(value || '').trim())) {
       return res.status(400).json({ error: 'Informe nome e localização da lixeira' });
     }
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    // Mantém as unidades desta operação dentro da região de Cascavel.
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -25.1 || lat > -24.8 || lng < -53.7 || lng > -53.2) {
+      return res.status(400).json({ error: 'Escolha um ponto válido na região de Cascavel' });
+    }
     const db = await readDB();
     const now = new Date().toISOString();
-    const bin = { id: uuidv4(), name: String(name).trim(), location: String(location).trim(), capacity_pct: 0, status: 'online', last_collected_at: now, created_at: now, updated_at: now };
+    const bin = { id: uuidv4(), name: String(name).trim(), location: String(location).trim(), latitude: lat, longitude: lng, capacity_pct: 0, status: 'online', last_collected_at: now, created_at: now, updated_at: now };
     db.bins.push(bin);
     await writeDB(db);
     res.status(201).json(bin);

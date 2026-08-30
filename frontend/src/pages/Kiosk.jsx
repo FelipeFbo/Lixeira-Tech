@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { WASTE_CATEGORIES, calculateImpact } from "../lib/impact";
 import { LineIcon } from "../components/ui/LineIcon";
+import { KioskBinMap } from "../components/kiosk/KioskBinMap";
 import "./Kiosk.css";
 
 const STEPS = { welcome: "welcome", identify: "identify", item: "item", confirm: "confirm", opening: "opening", complete: "complete" };
@@ -22,7 +23,7 @@ export default function Kiosk() {
   useEffect(() => {
     api.kiosk.bins().then((items) => {
       setBins(items);
-      setBinId(items.find((bin) => bin.status === "online")?.id || "");
+      setBinId("");
     }).catch(() => setError("Não foi possível conectar às lixeiras."));
   }, []);
 
@@ -122,11 +123,8 @@ export default function Kiosk() {
               <label className="kiosk-label">Itens<input type="number" min="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label>
               <button type="button" className="kiosk-scale" onClick={simulateScale}>⚖ Simular balança</button>
             </div>
-            <label className="kiosk-label">Escolha a lixeira
-              <select value={binId} onChange={(event) => setBinId(event.target.value)}>
-                {bins.map((bin) => <option value={bin.id} key={bin.id} disabled={bin.status !== "online"}>{bin.name} · {bin.location} · {bin.status === "online" ? `${bin.capacity}%` : "indisponível"}</option>)}
-              </select>
-            </label>
+            <KioskBinMap bins={bins} selectedBinId={binId} onSelect={setBinId} />
+            {selectedBin && <p className="kiosk-bin-selected"><span>✓</span>{selectedBin.name} · {selectedBin.location} · {selectedBin.capacity}% cheia</p>}
             {error && <p className="kiosk-error">{error}</p>}
             <button className="kiosk-primary" disabled={!category || Number(weight) <= 0 || !selectedBin || selectedBin.status !== "online"} onClick={() => setStep(STEPS.confirm)}>Continuar</button>
           </div>

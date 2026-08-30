@@ -6,6 +6,7 @@ import { ProtectedRoute } from "./components/ui/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
 import Deposit from "./pages/Deposit";
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Signup />} />
+            <Route path="/redefinir-senha" element={<ResetPassword />} />
             <Route path="/panorama" element={<WorldPanorama />} />
             <Route path="/museu" element={<Museum />} />
             <Route path="/museu/:slug" element={<MuseumDetail />} />
