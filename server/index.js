@@ -11,6 +11,10 @@ import { initDatabase, readDB, updateBinById, writeDB } from './db.js';
 
 const app = express();
 const PORT = 3001;
+// A certificação é liberada pela conquista ambiental "Protetor do Planeta".
+// A mesma regra é usada no card de conquistas do Dashboard: 50 kg aprovados.
+const AMBASSADOR_MIN_EWASTE_KG = 50;
+const REFERRAL_REWARD_POINTS = 50;
 const CO2_FACTOR_BY_TYPE = {
   celular: 12.5,
   notebook: 9,
@@ -61,15 +65,28 @@ function isSameDay(isoA, isoB = new Date().toISOString()) {
 }
 
 function publicUser(user) {
-  const { password_hash, matricula, class_name, kiosk_code, ...rest } = user;
+  const { password_hash, matricula, class_name, kiosk_code, referred_by_user_id, ...rest } = user;
   return { ...rest, kioskCode: kiosk_code };
+}
+
+function ambassadorEligibility(user, deposits) {
+  const approved = deposits.filter((deposit) => deposit.user_id === user.id && deposit.status === 'approved');
+  const approvedDeposits = approved.length;
+  const ewasteKg = approved.reduce((total, deposit) => total + Math.max(0, Number(deposit.weight_delta) || 0), 0);
+  return {
+    approvedDeposits,
+    ewasteKg,
+    minEwasteKg: AMBASSADOR_MIN_EWASTE_KG,
+    levelName: ewasteKg >= AMBASSADOR_MIN_EWASTE_KG ? 'Protetor do Planeta' : 'Em evolução',
+    eligible: ewasteKg >= AMBASSADOR_MIN_EWASTE_KG,
+  };
 }
 
 // ---------- Auth ----------
 
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, referralCode } = req.body;
     const db = await readDB();
 
     if (![name, email, phone, password].every((value) => String(value || '').trim())) {
@@ -88,6 +105,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const password_hash = bcrypt.hashSync(password, 10);
     const id = uuidv4();
 
+    const referrer = referralCode ? db.users.find((candidate) => candidate.referral_code === String(referralCode).trim().toUpperCase() && candidate.ambassador_status === 'approved') : null;
     const user = {
       id,
       name,
@@ -98,6 +116,9 @@ app.post('/api/auth/signup', async (req, res) => {
       class_name: name,
       points: 0,
       kiosk_code: uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase(),
+      referred_by_user_id: referrer?.id || null,
+      referral_status: referrer ? 'pending' : 'none',
+      referral_reward_points: 0,
       created_at: new Date().toISOString(),
     };
 
@@ -173,6 +194,60 @@ app.post('/api/auth/reset-password', async (req, res) => {
     await writeDB(db);
 
     res.json({ message: 'Senha redefinida com sucesso' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ---------- Programa de embaixadores ----------
+
+app.get('/api/ambassador/eligibility/:userId', async (req, res) => {
+  try {
+    const db = await readDB();
+    const user = db.users.find((item) => item.id === req.params.userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json({ ...ambassadorEligibility(user, db.deposits), status: user.ambassador_status || 'none', certificateCode: user.ambassador_certificate_code || null });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/referrals/:userId', async (req, res) => {
+  try {
+    const db = await readDB();
+    const ambassador = db.users.find((user) => user.id === req.params.userId && user.ambassador_status === 'approved');
+    if (!ambassador) return res.status(403).json({ error: 'Apenas embaixadores certificados possuem indicações' });
+    const referrals = db.users.filter((user) => user.referred_by_user_id === ambassador.id).map((user) => ({ id: user.id, name: user.name, status: user.referral_status, rewardPoints: user.referral_reward_points, registeredAt: user.created_at, qualifiedAt: user.referral_qualified_at || null }));
+    res.json({ code: ambassador.referral_code, referrals, total: referrals.length, qualified: referrals.filter((referral) => referral.status === 'qualified').length, rewardPoints: referrals.reduce((total, referral) => total + Number(referral.rewardPoints || 0), 0) });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+app.post('/api/ambassador/request', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const db = await readDB();
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    const eligibility = ambassadorEligibility(user, db.deposits);
+    if (!eligibility.eligible) return res.status(400).json({ error: 'Você ainda não atingiu os requisitos para se tornar embaixador' });
+    if (user.ambassador_status === 'approved') return res.status(400).json({ error: 'Você já é um Embaixador Lixeira Tech' });
+    if (user.ambassador_status === 'pending') return res.status(400).json({ error: 'Sua solicitação já está em análise' });
+
+    user.ambassador_status = 'pending';
+    user.ambassador_requested_at = new Date().toISOString();
+    await writeDB(db);
+    res.json({ success: true, message: 'Solicitação enviada para análise' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/certificates/:code', async (req, res) => {
+  try {
+    const db = await readDB();
+    const user = db.users.find((item) => item.ambassador_status === 'approved' && item.ambassador_certificate_code === String(req.params.code || '').toUpperCase());
+    if (!user) return res.status(404).json({ error: 'Certificado não encontrado ou não está válido' });
+    res.json({ name: user.name, code: user.ambassador_certificate_code, approvedAt: user.ambassador_approved_at, title: 'Embaixador Lixeira Tech' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -367,6 +442,65 @@ app.get('/api/user/ranking/:userId', async (req, res) => {
 
 // ---------- Admin ----------
 
+app.get('/api/admin/ambassadors', async (_req, res) => {
+  try {
+    const db = await readDB();
+    const rows = db.users
+      .filter((user) => ['pending', 'approved', 'rejected'].includes(user.ambassador_status))
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        status: user.ambassador_status,
+        requestedAt: user.ambassador_requested_at,
+        approvedAt: user.ambassador_approved_at,
+        certificateCode: user.ambassador_certificate_code || null,
+        ...ambassadorEligibility(user, db.deposits),
+      }))
+      .sort((a, b) => new Date(b.requestedAt || 0) - new Date(a.requestedAt || 0));
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/ambassadors/approve', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const db = await readDB();
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (user.ambassador_status !== 'pending') return res.status(400).json({ error: 'Esta solicitação não está pendente' });
+
+    user.ambassador_status = 'approved';
+    user.ambassador_approved_at = new Date().toISOString();
+    user.ambassador_certificate_code = `LTX-${new Date().getFullYear()}-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    user.referral_code = user.referral_code || `LT-${uuidv4().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    await writeDB(db);
+    res.json({ success: true, certificateCode: user.ambassador_certificate_code });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/admin/ambassadors/reject', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const db = await readDB();
+    const user = db.users.find((item) => item.id === userId);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    if (user.ambassador_status !== 'pending') return res.status(400).json({ error: 'Esta solicitação não está pendente' });
+
+    user.ambassador_status = 'rejected';
+    user.ambassador_approved_at = null;
+    user.ambassador_certificate_code = null;
+    await writeDB(db);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/admin/bins', async (_req, res) => {
   try {
     const db = await readDB();
@@ -502,11 +636,35 @@ app.post('/api/admin/approve-deposit', async (req, res) => {
     const user = db.users.find((u) => u.id === deposit.user_id);
     if (user) user.points = (user.points || 0) + points;
 
+    if (user?.referred_by_user_id && user.referral_status === 'pending') {
+      const approvedDeposits = db.deposits.filter((item) => item.user_id === user.id && item.status === 'approved').length;
+      if (approvedDeposits === 1) {
+        const referrer = db.users.find((item) => item.id === user.referred_by_user_id && item.ambassador_status === 'approved');
+        if (referrer) {
+          referrer.points = (referrer.points || 0) + REFERRAL_REWARD_POINTS;
+          user.referral_status = 'qualified';
+          user.referral_reward_points = REFERRAL_REWARD_POINTS;
+          user.referral_qualified_at = new Date().toISOString();
+        }
+      }
+    }
+
     await writeDB(db);
     res.json({ success: true, message: 'Depósito aprovado com sucesso' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.get('/api/admin/referrals', async (_req, res) => {
+  try {
+    const db = await readDB();
+    const rows = db.users.filter((user) => user.referred_by_user_id).map((user) => {
+      const ambassador = db.users.find((candidate) => candidate.id === user.referred_by_user_id);
+      return { id: user.id, name: user.name, email: user.email, ambassadorName: ambassador?.name || '—', ambassadorCode: ambassador?.referral_code || '—', status: user.referral_status, rewardPoints: user.referral_reward_points, registeredAt: user.created_at, qualifiedAt: user.referral_qualified_at || null };
+    }).sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+    res.json(rows);
+  } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 app.post('/api/admin/reject-deposit', async (req, res) => {

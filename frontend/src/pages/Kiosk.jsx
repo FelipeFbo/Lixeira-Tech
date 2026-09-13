@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import { api } from "../lib/api";
 import { WASTE_CATEGORIES, calculateImpact } from "../lib/impact";
 import { LineIcon } from "../components/ui/LineIcon";
@@ -30,12 +31,14 @@ export default function Kiosk() {
   const selectedBin = bins.find((bin) => bin.id === binId);
   const impact = category ? calculateImpact(Number(weight) || 0, category.key) : null;
 
-  async function identifyUser(event) {
-    event.preventDefault();
+  async function identifyCode(value) {
+    const normalizedCode = String(value || "").trim().toUpperCase();
+    if (!normalizedCode) return;
     setBusy(true);
     setError("");
     try {
-      const account = await api.kiosk.userByCode(code);
+      const account = await api.kiosk.userByCode(normalizedCode);
+      setCode(normalizedCode);
       setUser(account);
       setStep(STEPS.item);
     } catch (requestError) {
@@ -44,6 +47,30 @@ export default function Kiosk() {
       setBusy(false);
     }
   }
+
+  async function identifyUser(event) {
+    event.preventDefault();
+    identifyCode(code);
+  }
+
+  useEffect(() => {
+    if (step !== STEPS.identify) return undefined;
+    let active = true;
+    const scanner = new Html5QrcodeScanner("kiosk-qr-reader", { fps: 10, qrbox: { width: 220, height: 220 } }, false);
+    scanner.render(
+      (decodedText) => {
+        if (!active) return;
+        active = false;
+        scanner.clear().catch(() => {});
+        identifyCode(decodedText);
+      },
+      () => {},
+    );
+    return () => {
+      active = false;
+      scanner.clear().catch(() => {});
+    };
+  }, [step]);
 
   function simulateScale() {
     setWeight((0.2 + Math.random() * 3.8).toFixed(1));
@@ -97,12 +124,12 @@ export default function Kiosk() {
           <form className="kiosk-card" onSubmit={identifyUser}>
             <p className="eyebrow">Identificação rápida</p>
             <h1 className="display">Aproxime ou digite seu QR Code</h1>
-            <div className="kiosk-qr-placeholder" aria-label="Leitor de QR Code simulado"><span>⌁</span><small>LEITOR SIMULADO</small></div>
+            <div id="kiosk-qr-reader" className="kiosk-qr-reader" aria-label="Leitor de QR Code pela câmera" />
             <label className="kiosk-label">Código pessoal
               <input autoFocus value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="EX: A1B2C3D4" maxLength="8" />
             </label>
             {error && <p className="kiosk-error">{error}</p>}
-            <button className="kiosk-primary" disabled={busy || !code}>{busy ? "Lendo…" : "Simular leitura"}</button>
+            <button className="kiosk-primary" disabled={busy || !code}>{busy ? "Lendo…" : "Entrar com código"}</button>
             <button type="button" className="kiosk-secondary" onClick={() => setStep(STEPS.welcome)}>Voltar</button>
           </form>
         )}

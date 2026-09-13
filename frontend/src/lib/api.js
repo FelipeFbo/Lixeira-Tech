@@ -58,6 +58,18 @@ export const api = {
     global: () => request("/api/leaderboard/global"),
   },
 
+  ambassador: {
+    eligibility: (userId) => request(`/api/ambassador/eligibility/${userId}`),
+    request: (userId) => request("/api/ambassador/request", { method: "POST", body: JSON.stringify({ userId }) }),
+  },
+  referrals: {
+    mine: (userId) => request(`/api/referrals/${userId}`),
+  },
+
+  certificates: {
+    verify: (code) => request(`/api/certificates/${encodeURIComponent(code)}`),
+  },
+
   assistant: {
     chat: (messages) =>
       request("/api/assistant/chat", {
@@ -86,6 +98,10 @@ export const api = {
         body: JSON.stringify({ depositId }),
       }),
     users: () => request("/api/admin/users"),
+    ambassadors: () => request("/api/admin/ambassadors"),
+    referrals: () => request("/api/admin/referrals"),
+    approveAmbassador: (userId) => request("/api/admin/ambassadors/approve", { method: "POST", body: JSON.stringify({ userId }) }),
+    rejectAmbassador: (userId) => request("/api/admin/ambassadors/reject", { method: "POST", body: JSON.stringify({ userId }) }),
     addPoints: (userId, points, reason) =>
       request("/api/admin/add-points", {
         method: "POST",

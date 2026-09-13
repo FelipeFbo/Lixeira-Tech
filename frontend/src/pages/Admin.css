@@ -125,6 +125,8 @@
 .admin-deposits-table-wrap { overflow-x: auto; }
 .admin-deposits-table { min-width: 940px; }
 .admin-deposits-table td { vertical-align: top; }
+.admin-deposit-filters { display: grid; grid-template-columns: minmax(15rem, 1.7fr) repeat(4, minmax(8rem, 1fr)) auto; gap: var(--space-3); align-items: end; padding: var(--space-4); margin-bottom: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+.admin-deposit-filters label { display: grid; gap: .45rem; color: var(--color-text-dim); font: var(--fs-mono-xs) var(--font-mono); letter-spacing: var(--tracking-wide); text-transform: uppercase; }.admin-deposit-filters select { min-height: 2.8rem; padding: .55rem .7rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); background: var(--color-bg); font: var(--fs-body-sm) var(--font-sans); }.admin-deposit-filter-search { min-width: 0; }.admin-deposit-filter-search label { margin-bottom: .45rem; }.admin-deposit-filter-reset { white-space: nowrap; }.admin-deposit-filter-summary, .admin-deposit-pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); color: var(--color-text-dim); font: var(--fs-body-sm) var(--font-mono); }.admin-deposit-empty { padding: var(--space-8); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); text-align: center; }.admin-deposit-pagination { justify-content: flex-end; margin-top: var(--space-5); }
 .admin-status {
   display: inline-block;
   padding: 0.28rem 0.55rem;
@@ -138,6 +140,8 @@
 .admin-status-approved { color: var(--color-accent); }
 .admin-status-rejected { color: var(--color-support-coral); }
 .admin-add-points { display: flex; gap: var(--space-2); }
+.admin-ambassadors { display: grid; gap: var(--space-6); }.admin-ambassadors-header { display: flex; align-items: end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }.admin-ambassadors-header h2 { margin: var(--space-1) 0 0; font-size: var(--fs-display-sm); }.admin-ambassadors-header > p { max-width: 30rem; margin: 0; }.admin-ambassadors-list { display: grid; gap: var(--space-4); }.admin-ambassador-card { display: grid; grid-template-columns: minmax(12rem, 1fr) auto auto; align-items: center; gap: var(--space-5); }.admin-ambassador-card h3 { margin: var(--space-1) 0; font-size: var(--fs-display-sm); }.admin-ambassador-card p { margin: 0; }.admin-ambassador-metrics { display: grid; gap: var(--space-2); color: var(--color-text-dim); font: var(--fs-body-sm) var(--font-mono); white-space: nowrap; }.admin-ambassador-actions { display: flex; align-items: center; justify-content: end; flex-wrap: wrap; gap: var(--space-2); }.admin-ambassadors-empty { padding: var(--space-8); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); text-align: center; }
+.admin-crm-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-3); }.admin-crm-stats .card { padding: var(--space-5); text-align: center; }.admin-crm-stats p { margin: var(--space-2) 0 0; }.admin-crm-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: var(--space-4); }.admin-crm-rule { display: grid; grid-template-columns: 2rem 1fr; gap: var(--space-3); align-items: center; }.admin-crm-rule span { display: grid; place-items: center; width: 2rem; aspect-ratio: 1; border-radius: 50%; background: var(--color-accent); color: #06120a; font: var(--fs-body-sm) var(--font-mono); }.admin-crm-rule p { margin: 0; padding-block: var(--space-2); border-bottom: 1px solid var(--color-border); }
 
 .admin-college-ranking { list-style: none; margin: 0; padding: 0; }
 .admin-college-ranking-row {
@@ -169,12 +173,16 @@
   .admin-dashboard-rail > :first-child { grid-column: 1 / -1; }
   .admin-dashboard-rail-status { border: 0; padding: 0; }
   .admin-dashboard-stats { grid-template-columns: repeat(2, 1fr); }
+  .admin-crm-stats { grid-template-columns: repeat(2, 1fr); }.admin-crm-grid { grid-template-columns: 1fr; }
   .admin-dashboard-grid { grid-template-columns: 1fr; }
   .admin-college-ranking-row { padding: var(--space-4); }
   .admin-bin-map { grid-template-columns: 1fr; }
   .admin-bins-grid { grid-template-columns: 1fr 1fr; }
   .admin-bin-create { grid-template-columns: 1fr 1fr; }
   .admin-bin-create .btn { grid-column: 1 / -1; }
+  .admin-deposit-filters { grid-template-columns: 1fr 1fr; }
+  .admin-deposit-filter-search { grid-column: 1 / -1; }
+  .admin-ambassador-card { grid-template-columns: 1fr auto; }.admin-ambassador-actions { grid-column: 1 / -1; justify-content: start; }
 }
 
 @media (max-width: 520px) {
@@ -182,6 +190,7 @@
   .admin-dashboard-rail > :first-child { grid-column: auto; }
   .admin-dashboard-gauges { justify-content: space-between; }
   .admin-dashboard-stats { grid-template-columns: 1fr; }
+  .admin-crm-stats { grid-template-columns: 1fr; }
   .admin-impact-chart-row { grid-template-columns: 1fr auto; }
   .admin-impact-chart-track { grid-column: 1 / -1; grid-row: 2; }
   .admin-dashboard-queue li { flex-direction: column; gap: var(--space-1); }
@@ -189,5 +198,7 @@
   .admin-weekly-bar { height: 130px; }
   .admin-weekly-bar > .text-dim { font-size: 0.62rem; }
   .admin-bins-grid, .admin-bin-create { grid-template-columns: 1fr; }
+  .admin-deposit-filters { grid-template-columns: 1fr; }.admin-deposit-filter-search { grid-column: auto; }.admin-deposit-filter-summary { align-items: flex-start; flex-direction: column; }.admin-deposit-pagination { justify-content: space-between; }
+  .admin-ambassador-card { grid-template-columns: 1fr; }.admin-ambassador-actions { grid-column: auto; }
   .admin-bin-modal { padding: var(--space-4); }.admin-bin-modal-head, .admin-bin-modal-row { flex-direction: column; }.admin-bin-modal-footer { justify-content: stretch; }.admin-bin-modal-footer .btn { width: 100%; }
 }

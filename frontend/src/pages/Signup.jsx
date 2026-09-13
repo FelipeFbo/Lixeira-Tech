@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { AuthAmbient } from "../components/auth/AuthAmbient";
 import { Field, Input } from "../components/ui/Input";
@@ -12,6 +12,8 @@ const EMPTY = { name: "", phone: "", email: "", password: "" };
 export default function Signup() {
   const { signup, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get("ref") || "";
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -24,7 +26,7 @@ export default function Signup() {
     e.preventDefault();
     setError(null);
     try {
-      await signup(form);
+      await signup({ ...form, referralCode });
       setSuccess(true);
       setTimeout(() => navigate("/dashboard"), 900);
     } catch (err) {
@@ -39,6 +41,7 @@ export default function Signup() {
         <div className="auth-form-wrap">
           <p className="eyebrow">Comece agora</p>
           <h1 className="display auth-title">Criar conta</h1>
+          {referralCode && <p className="auth-feedback auth-feedback-success mono">Você foi indicado por um Embaixador Lixeira Tech.</p>}
 
           <form onSubmit={handleSubmit} noValidate>
             <Field label="Nome completo">

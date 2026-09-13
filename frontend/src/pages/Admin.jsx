@@ -14,6 +14,8 @@ const TABS = [
   { key: "pending", label: "Aprovações" },
   { key: "bins", label: "Lixeiras" },
   { key: "students", label: "Usuários" },
+  { key: "ambassadors", label: "Embaixadores" },
+  { key: "referrals", label: "Indicações" },
   { key: "classes", label: "Ranking geral" },
 ];
 
@@ -23,8 +25,15 @@ const DASHBOARD_PERIODS = [
   { key: "7", label: "Últimos 7 dias" },
 ];
 
+const DEPOSIT_PAGE_SIZE = 10;
+const INITIAL_DEPOSIT_FILTERS = { search: "", status: "all", wasteType: "all", period: "all", binName: "all" };
+
 function statusLabel(status) {
   return ({ pending: "Em análise", approved: "Aprovado", rejected: "Rejeitado" })[status] || status;
+}
+
+function depositTypeLabel(type) {
+  return String(type || "outros").replaceAll("_", " ");
 }
 
 export default function Admin() {
@@ -34,6 +43,8 @@ export default function Admin() {
   const [deposits, setDeposits] = useState([]);
   const [bins, setBins] = useState([]);
   const [students, setStudents] = useState([]);
+  const [ambassadors, setAmbassadors] = useState([]);
+  const [referrals, setReferrals] = useState([]);
   const [classRankings, setClassRankings] = useState([]);
   const [pointsDraft, setPointsDraft] = useState({});
   const [addPointsDraft, setAddPointsDraft] = useState({});
@@ -41,6 +52,8 @@ export default function Admin() {
   const [dashboardPeriod, setDashboardPeriod] = useState("all");
   const [dashboardCategory, setDashboardCategory] = useState(null);
   const [dashboardMetric, setDashboardMetric] = useState("co2Kg");
+  const [depositFilters, setDepositFilters] = useState(INITIAL_DEPOSIT_FILTERS);
+  const [depositPage, setDepositPage] = useState(0);
   const [binForm, setBinForm] = useState({ name: "", location: "", latitude: "-24.955500", longitude: "-53.455200" });
   const [managedBin, setManagedBin] = useState(null);
 
@@ -50,6 +63,8 @@ export default function Admin() {
     api.admin.depositsHistory().then(setDeposits).catch(() => {});
     api.admin.bins().then(setBins).catch(() => {});
     api.admin.users().then(setStudents).catch(() => {});
+    api.admin.ambassadors().then(setAmbassadors).catch(() => {});
+    api.admin.referrals().then(setReferrals).catch(() => {});
     api.admin.userRankings().then(setClassRankings).catch(() => {});
   }
 
@@ -104,6 +119,22 @@ export default function Admin() {
     loadAll();
   }
 
+  async function reviewAmbassador(userId, decision) {
+    setBusyId(`ambassador-${userId}`);
+    try {
+      if (decision === "approve") await api.admin.approveAmbassador(userId);
+      else await api.admin.rejectAmbassador(userId);
+      loadAll();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function updateDepositFilter(field, value) {
+    setDepositFilters((current) => ({ ...current, [field]: value }));
+    setDepositPage(0);
+  }
+
   const periodStart = dashboardPeriod === "all"
     ? null
     : new Date(Date.now() - Number(dashboardPeriod) * 24 * 60 * 60 * 1000);
@@ -149,6 +180,33 @@ export default function Admin() {
   const maxWeeklyCo2 = Math.max(...weeklyActivity.map((day) => day.co2Kg), 1);
   const attentionBins = bins.filter((bin) => bin.capacity_pct >= 80 || bin.status !== "online");
   const managedBinDeposits = managedBin ? pending.filter((deposit) => deposit.binId === managedBin.id) : [];
+  const depositTypes = [...new Set(deposits.map((deposit) => deposit.wasteType).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const depositBins = [...new Set([...bins.map((bin) => bin.name), ...deposits.map((deposit) => deposit.binName)].filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const depositPeriodStart = depositFilters.period === "all" ? null : new Date(Date.now() - Number(depositFilters.period) * 24 * 60 * 60 * 1000);
+  const normalizedDepositSearch = depositFilters.search.trim().toLocaleLowerCase("pt-BR");
+  const filteredDeposits = deposits.filter((deposit) => {
+    const matchesStatus = depositFilters.status === "all" || deposit.status === depositFilters.status;
+    const matchesType = depositFilters.wasteType === "all" || deposit.wasteType === depositFilters.wasteType;
+    const matchesBin = depositFilters.binName === "all" || deposit.binName === depositFilters.binName;
+    const matchesPeriod = !depositPeriodStart || new Date(deposit.date) >= depositPeriodStart;
+    const searchable = [deposit.userName, deposit.wasteType, deposit.binName, deposit.description].join(" ").toLocaleLowerCase("pt-BR");
+    return matchesStatus && matchesType && matchesBin && matchesPeriod && (!normalizedDepositSearch || searchable.includes(normalizedDepositSearch));
+  });
+  const depositPageCount = Math.max(1, Math.ceil(filteredDeposits.length / DEPOSIT_PAGE_SIZE));
+  const currentDepositPage = Math.min(depositPage, depositPageCount - 1);
+  const visibleDeposits = filteredDeposits.slice(currentDepositPage * DEPOSIT_PAGE_SIZE, (currentDepositPage + 1) * DEPOSIT_PAGE_SIZE);
+  const qualifiedReferrals = referrals.filter((referral) => referral.status === "qualified");
+  const pendingReferrals = referrals.filter((referral) => referral.status === "pending");
+  const referralRewardPoints = referrals.reduce((total, referral) => total + Number(referral.rewardPoints || 0), 0);
+  const referralConversionRate = referrals.length ? Math.round((qualifiedReferrals.length / referrals.length) * 100) : 0;
+  const ambassadorReferralRanking = Object.values(referrals.reduce((acc, referral) => {
+    const key = referral.ambassadorCode || referral.ambassadorName;
+    if (!acc[key]) acc[key] = { name: referral.ambassadorName, code: referral.ambassadorCode, total: 0, qualified: 0, points: 0 };
+    acc[key].total += 1;
+    acc[key].qualified += referral.status === "qualified" ? 1 : 0;
+    acc[key].points += Number(referral.rewardPoints || 0);
+    return acc;
+  }, {})).sort((a, b) => b.qualified - a.qualified || b.total - a.total);
 
   return (
     <div className="admin container">
@@ -398,7 +456,37 @@ export default function Admin() {
           {deposits.length === 0 ? (
             <p className="text-dim">Nenhum depósito registrado ainda.</p>
           ) : (
-            <div className="admin-deposits-table-wrap">
+            <>
+              <section className="admin-deposit-filters" aria-label="Filtros de depósitos">
+                <div className="admin-deposit-filter-search">
+                  <label htmlFor="deposit-search">Buscar</label>
+                  <Input id="deposit-search" value={depositFilters.search} onChange={(event) => updateDepositFilter("search", event.target.value)} placeholder="Usuário, resíduo, lixeira ou observação" />
+                </div>
+                <label> Status
+                  <select value={depositFilters.status} onChange={(event) => updateDepositFilter("status", event.target.value)}>
+                    <option value="all">Todos</option><option value="pending">Em análise</option><option value="approved">Aprovados</option><option value="rejected">Rejeitados</option>
+                  </select>
+                </label>
+                <label> Resíduo
+                  <select value={depositFilters.wasteType} onChange={(event) => updateDepositFilter("wasteType", event.target.value)}>
+                    <option value="all">Todos</option>{depositTypes.map((type) => <option key={type} value={type}>{depositTypeLabel(type)}</option>)}
+                  </select>
+                </label>
+                <label> Período
+                  <select value={depositFilters.period} onChange={(event) => updateDepositFilter("period", event.target.value)}>
+                    <option value="all">Todo o período</option><option value="1">Hoje</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option>
+                  </select>
+                </label>
+                <label> Lixeira
+                  <select value={depositFilters.binName} onChange={(event) => updateDepositFilter("binName", event.target.value)}>
+                    <option value="all">Todas</option>{depositBins.map((binName) => <option key={binName} value={binName}>{binName}</option>)}
+                  </select>
+                </label>
+                <Button variant="ghost" className="admin-deposit-filter-reset" onClick={() => { setDepositFilters(INITIAL_DEPOSIT_FILTERS); setDepositPage(0); }}>Limpar filtros</Button>
+              </section>
+              <div className="admin-deposit-filter-summary"><span>{filteredDeposits.length} de {deposits.length} depósito(s)</span>{filteredDeposits.length > DEPOSIT_PAGE_SIZE && <span>Página {currentDepositPage + 1} de {depositPageCount}</span>}</div>
+              {filteredDeposits.length === 0 ? <p className="admin-deposit-empty text-dim">Nenhum depósito corresponde aos filtros selecionados.</p> : <>
+              <div className="admin-deposits-table-wrap">
               <table className="admin-table admin-deposits-table">
                 <thead>
                   <tr>
@@ -413,7 +501,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {deposits.map((d) => {
+                  {visibleDeposits.map((d) => {
                     const impact = calculateImpact(d.weight, d.wasteType);
                     return (
                     <tr key={d.id}>
@@ -439,9 +527,37 @@ export default function Admin() {
                   })}
                 </tbody>
               </table>
-            </div>
+              </div>
+              {depositPageCount > 1 && <nav className="admin-deposit-pagination" aria-label="Paginação dos depósitos"><Button variant="ghost" disabled={currentDepositPage === 0} onClick={() => setDepositPage((page) => Math.max(0, page - 1))}>Anterior</Button><span>Página {currentDepositPage + 1} de {depositPageCount}</span><Button variant="ghost" disabled={currentDepositPage >= depositPageCount - 1} onClick={() => setDepositPage((page) => Math.min(depositPageCount - 1, page + 1))}>Próxima</Button></nav>}
+              </>}
+            </>
           )}
         </div>
+      )}
+
+      {tab === "ambassadors" && (
+        <section className="admin-ambassadors">
+          <div className="admin-ambassadors-header"><div><p className="eyebrow">Programa de embaixadores</p><h2 className="display">Certificações</h2></div><p className="text-dim">Aprovações geram um certificado verificável por código.</p></div>
+          {ambassadors.length === 0 ? <p className="admin-ambassadors-empty text-dim">Ainda não há solicitações de embaixadores.</p> : <div className="admin-ambassadors-list">{ambassadors.map((ambassador) => <Card key={ambassador.id} className={`admin-ambassador-card status-${ambassador.status}`}><div><p className="eyebrow">{ambassador.status === "pending" ? "Aguardando análise" : ambassador.status === "approved" ? "Embaixador certificado" : "Solicitação recusada"}</p><h3 className="display">{ambassador.name}</h3><p className="text-dim">{ambassador.email}</p></div><div className="admin-ambassador-metrics"><span>{ambassador.ewasteKg} / {ambassador.minEwasteKg} kg de e-lixo</span><span>{ambassador.approvedDeposits} depósitos aprovados</span></div><div className="admin-ambassador-actions">{ambassador.status === "pending" ? <><Button disabled={busyId === `ambassador-${ambassador.id}`} onClick={() => reviewAmbassador(ambassador.id, "approve")}>Aprovar e certificar</Button><Button variant="ghost" disabled={busyId === `ambassador-${ambassador.id}`} onClick={() => reviewAmbassador(ambassador.id, "reject")}>Recusar</Button></> : ambassador.status === "approved" ? <a className="text-accent mono" href={`/certificado/${ambassador.certificateCode}`} target="_blank" rel="noreferrer">ver certificado →</a> : <span className="text-dim">Recusado</span>}</div></Card>)}</div>}
+        </section>
+      )}
+
+      {tab === "referrals" && (
+        <section className="admin-ambassadors">
+          <div className="admin-ambassadors-header"><div><p className="eyebrow">CRM interno</p><h2 className="display">Dashboard de indicações</h2></div><p className="text-dim">A recompensa é liberada no primeiro depósito aprovado do indicado.</p></div>
+          <div className="admin-crm-stats">
+            <Card><span className="mono fs-mono-lg text-accent">{referrals.length}</span><p className="text-dim">cadastros por indicação</p></Card>
+            <Card><span className="mono fs-mono-lg admin-dashboard-pending">{pendingReferrals.length}</span><p className="text-dim">aguardando conversão</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{qualifiedReferrals.length}</span><p className="text-dim">indicações qualificadas</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{referralConversionRate}%</span><p className="text-dim">taxa de conversão</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{referralRewardPoints}</span><p className="text-dim">pontos distribuídos</p></Card>
+          </div>
+          <div className="admin-crm-grid">
+            <Card className="admin-dashboard-card"><p className="eyebrow">Desempenho</p><h3 className="display">Embaixadores que indicam</h3>{ambassadorReferralRanking.length === 0 ? <p className="text-dim">Ainda não há dados de indicação.</p> : <ol className="admin-dashboard-ranking">{ambassadorReferralRanking.map((item, index) => <li key={item.code}><span className="text-faint mono">#{index + 1}</span><div className="admin-ranking-chart-name"><strong>{item.name}</strong><span className="admin-ranking-chart-track"><span style={{ width: `${Math.max(8, (item.qualified / Math.max(1, ambassadorReferralRanking[0].qualified)) * 100)}%` }} /></span></div><span className="mono text-accent">{item.qualified}/{item.total}</span></li>)}</ol>}</Card>
+            <Card className="admin-dashboard-card"><p className="eyebrow">Regra de conversão</p><h3 className="display">Como a recompensa funciona</h3><div className="admin-crm-rule"><span>1</span><p>Cadastro por link do embaixador</p><span>2</span><p>Primeiro depósito registrado</p><span>3</span><p>Admin aprova o depósito</p><span>4</span><p><strong>50 pontos</strong> liberados ao embaixador</p></div></Card>
+          </div>
+          {referrals.length === 0 ? <p className="admin-ambassadors-empty text-dim">Ainda não há cadastros por indicação.</p> : <div className="admin-ambassadors-list">{referrals.map((referral) => <Card key={referral.id} className="admin-ambassador-card"><div><p className="eyebrow">{referral.status === "qualified" ? "Indicação qualificada" : "Aguardando primeiro depósito"}</p><h3 className="display">{referral.name}</h3><p className="text-dim">Indicado por {referral.ambassadorName}</p></div><div className="admin-ambassador-metrics"><span>{referral.rewardPoints} pontos de recompensa</span><span className="mono">{referral.ambassadorCode}</span></div><div className="admin-ambassador-actions"><span className={referral.status === "qualified" ? "text-accent mono" : "text-dim mono"}>{referral.status === "qualified" ? "Convertido" : "Pendente"}</span></div></Card>)}</div>}
+        </section>
       )}
 
       {tab === "bins" && (

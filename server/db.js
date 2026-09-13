@@ -34,11 +34,36 @@ const schema = `
     class_name TEXT NOT NULL,
     points INTEGER NOT NULL DEFAULT 0,
     kiosk_code TEXT UNIQUE,
+    ambassador_status TEXT NOT NULL DEFAULT 'none' CHECK (ambassador_status IN ('none', 'pending', 'approved', 'rejected')),
+    ambassador_requested_at TIMESTAMPTZ,
+    ambassador_approved_at TIMESTAMPTZ,
+    ambassador_certificate_code TEXT UNIQUE,
+    referral_code TEXT UNIQUE,
+    referred_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    referral_status TEXT NOT NULL DEFAULT 'none' CHECK (referral_status IN ('none', 'pending', 'qualified')),
+    referral_reward_points INTEGER NOT NULL DEFAULT 0,
+    referral_qualified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   ALTER TABLE users ADD COLUMN IF NOT EXISTS kiosk_code TEXT UNIQUE;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT NOT NULL DEFAULT '';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS ambassador_status TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS ambassador_requested_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS ambassador_approved_at TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS ambassador_certificate_code TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_status TEXT NOT NULL DEFAULT 'none';
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_reward_points INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_qualified_at TIMESTAMPTZ;
+  CREATE UNIQUE INDEX IF NOT EXISTS users_ambassador_certificate_code_idx ON users (ambassador_certificate_code) WHERE ambassador_certificate_code IS NOT NULL;
+  CREATE UNIQUE INDEX IF NOT EXISTS users_referral_code_idx ON users (referral_code) WHERE referral_code IS NOT NULL;
+  -- Certificados emitidos antes do programa de indicação também recebem
+  -- um código estável, para que seus links possam ser usados normalmente.
+  UPDATE users
+    SET referral_code = 'LT-' || UPPER(SUBSTRING(REPLACE(id, '-', '') FROM 1 FOR 8))
+    WHERE ambassador_status = 'approved' AND referral_code IS NULL;
   UPDATE users
     SET kiosk_code = UPPER(SUBSTRING(REPLACE(id, '-', '') FROM 1 FOR 8))
     WHERE kiosk_code IS NULL;
@@ -117,7 +142,14 @@ function toIso(value) {
 }
 
 function normalizeUser(user) {
-  return { ...user, points: Number(user.points), created_at: toIso(user.created_at) };
+  return {
+    ...user,
+    points: Number(user.points),
+    ambassador_requested_at: toIso(user.ambassador_requested_at),
+    ambassador_approved_at: toIso(user.ambassador_approved_at),
+    referral_qualified_at: toIso(user.referral_qualified_at),
+    created_at: toIso(user.created_at),
+  };
 }
 
 function normalizeBin(bin) {
@@ -217,11 +249,20 @@ export async function writeDB(db) {
     await client.query('DELETE FROM collection_bins');
     await client.query('DELETE FROM users');
 
-    for (const user of db.users) {
+    // Contas indicadas dependem da conta do embaixador. Ao reconstruir o
+    // conjunto de dados, os embaixadores precisam ser inseridos primeiro
+    // para respeitar a chave estrangeira referred_by_user_id.
+    const usersInInsertOrder = [...db.users].sort((a, b) => {
+      const aIsReferred = a.referred_by_user_id ? 1 : 0;
+      const bIsReferred = b.referred_by_user_id ? 1 : 0;
+      return aIsReferred - bIsReferred;
+    });
+
+    for (const user of usersInInsertOrder) {
       await client.query(
-        `INSERT INTO users (id, name, matricula, email, phone, password_hash, class_name, points, kiosk_code, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [user.id, user.name, user.matricula || '', user.email, user.phone || '', user.password_hash, user.class_name || user.name, Number(user.points) || 0, user.kiosk_code, user.created_at],
+        `INSERT INTO users (id, name, matricula, email, phone, password_hash, class_name, points, kiosk_code, ambassador_status, ambassador_requested_at, ambassador_approved_at, ambassador_certificate_code, referral_code, referred_by_user_id, referral_status, referral_reward_points, referral_qualified_at, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        [user.id, user.name, user.matricula || '', user.email, user.phone || '', user.password_hash, user.class_name || user.name, Number(user.points) || 0, user.kiosk_code, user.ambassador_status || 'none', user.ambassador_requested_at || null, user.ambassador_approved_at || null, user.ambassador_certificate_code || null, user.referral_code || null, user.referred_by_user_id || null, user.referral_status || 'none', Number(user.referral_reward_points) || 0, user.referral_qualified_at || null, user.created_at],
       );
     }
 
