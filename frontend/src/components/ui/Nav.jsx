@@ -31,7 +31,7 @@ export function Nav() {
         {user ? (
           <nav className="nav-links">
             {isAdmin ? (
-              <NavLink to="/admin" className="nav-link">Admin</NavLink>
+              <><NavLink to="/admin" className="nav-link">Admin</NavLink><NavLink to="/quiosque" className="nav-link">Quiosque</NavLink></>
             ) : (
               <>
                 <NavLink to="/dashboard" className="nav-link">Seu impacto</NavLink>
@@ -39,6 +39,7 @@ export function Nav() {
                 <NavLink to="/ranking" className="nav-link">Comunidade</NavLink>
                 <NavLink to="/panorama" className="nav-link">Panorama</NavLink>
                 <NavLink to="/museu" className="nav-link">Museu</NavLink>
+                <NavLink to="/quiosque" className="nav-link">Quiosque</NavLink>
               </>
             )}
             <button className="nav-link nav-logout" onClick={logout}>Sair</button>
@@ -47,6 +48,7 @@ export function Nav() {
           <nav className="nav-links">
             <NavLink to="/panorama" className="nav-link">Panorama</NavLink>
             <NavLink to="/museu" className="nav-link">Museu</NavLink>
+            <NavLink to="/quiosque" className="nav-link">Quiosque</NavLink>
             <NavLink to="/login" className="nav-link">Entrar</NavLink>
             <Link to="/cadastro" className="nav-cta mono">Cadastre-se</Link>
           </nav>

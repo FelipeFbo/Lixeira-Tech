@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { AuthAmbient } from "../components/auth/AuthAmbient";
 import { Field, Input } from "../components/ui/Input";
@@ -7,11 +7,13 @@ import { Button } from "../components/ui/Button";
 import { useAuth } from "../store/AuthContext";
 import "./Auth.css";
 
-const EMPTY = { name: "", email: "", password: "" };
+const EMPTY = { name: "", phone: "", email: "", password: "" };
 
 export default function Signup() {
   const { signup, loading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get("ref") || "";
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -24,7 +26,7 @@ export default function Signup() {
     e.preventDefault();
     setError(null);
     try {
-      await signup(form);
+      await signup({ ...form, referralCode });
       setSuccess(true);
       setTimeout(() => navigate("/dashboard"), 900);
     } catch (err) {
@@ -39,13 +41,17 @@ export default function Signup() {
         <div className="auth-form-wrap">
           <p className="eyebrow">Comece agora</p>
           <h1 className="display auth-title">Criar conta</h1>
+          {referralCode && <p className="auth-feedback auth-feedback-success mono">Você foi indicado por um Embaixador Lixeira Tech.</p>}
 
           <form onSubmit={handleSubmit} noValidate>
-            <Field label="Nome do colégio">
-              <Input required value={form.name} onChange={update("name")} placeholder="Ex: Colégio Estadual Centro" />
+            <Field label="Nome completo">
+              <Input required value={form.name} onChange={update("name")} placeholder="Ex: Ana Silva" />
+            </Field>
+            <Field label="Telefone">
+              <Input type="tel" inputMode="tel" required value={form.phone} onChange={update("phone")} placeholder="Ex: (45) 99999-9999" />
             </Field>
             <Field label="E-mail">
-              <Input type="email" required value={form.email} onChange={update("email")} placeholder="voce@escola.com" />
+              <Input type="email" required value={form.email} onChange={update("email")} placeholder="voce@email.com" />
             </Field>
             <Field label="Senha">
               <Input type="password" required value={form.password} onChange={update("password")} placeholder="••••••••" />

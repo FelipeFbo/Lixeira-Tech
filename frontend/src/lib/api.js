@@ -31,6 +31,8 @@ export const api = {
       request("/api/auth/signup", { method: "POST", body: JSON.stringify(payload) }),
     login: (email, password) =>
       request("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    resetPassword: (email, password) =>
+      request("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ email, password }) }),
   },
 
   user: {
@@ -40,15 +42,32 @@ export const api = {
 
   deposits: {
     listByUser: (userId) => request(`/api/deposits/${userId}`),
-    create: ({ userId, wasteType, quantity, weight, description }) =>
+    create: ({ userId, binId, wasteType, quantity, weight, description }) =>
       request("/api/deposits", {
         method: "POST",
-        body: JSON.stringify({ userId, wasteType, quantity, weight, description }),
+        body: JSON.stringify({ userId, binId, wasteType, quantity, weight, description }),
       }),
+  },
+
+  kiosk: {
+    bins: () => request("/api/kiosk/bins"),
+    userByCode: (code) => request(`/api/kiosk/users/${encodeURIComponent(code)}`),
   },
 
   leaderboard: {
     global: () => request("/api/leaderboard/global"),
+  },
+
+  ambassador: {
+    eligibility: (userId) => request(`/api/ambassador/eligibility/${userId}`),
+    request: (userId) => request("/api/ambassador/request", { method: "POST", body: JSON.stringify({ userId }) }),
+  },
+  referrals: {
+    mine: (userId) => request(`/api/referrals/${userId}`),
+  },
+
+  certificates: {
+    verify: (code) => request(`/api/certificates/${encodeURIComponent(code)}`),
   },
 
   assistant: {
@@ -60,9 +79,13 @@ export const api = {
   },
 
   admin: {
+    bins: () => request("/api/admin/bins"),
+    createBin: (name, location, latitude, longitude) => request("/api/admin/bins", { method: "POST", body: JSON.stringify({ name, location, latitude, longitude }) }),
+    updateBin: (binId, changes) => request("/api/admin/bins/update", { method: "POST", body: JSON.stringify({ binId, ...changes }) }),
+    collectBin: (binId) => request("/api/admin/bins/collect", { method: "POST", body: JSON.stringify({ binId }) }),
     depositsHistory: () => request("/api/admin/deposits/historico"),
     globalStats: () => request("/api/admin/global-stats"),
-    classRankings: () => request("/api/admin/class-rankings"),
+    userRankings: () => request("/api/admin/user-rankings"),
     pendingDeposits: () => request("/api/admin/pending-deposits"),
     approveDeposit: (depositId, points) =>
       request("/api/admin/approve-deposit", {
@@ -74,7 +97,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ depositId }),
       }),
-    students: () => request("/api/admin/students"),
+    users: () => request("/api/admin/users"),
+    ambassadors: () => request("/api/admin/ambassadors"),
+    referrals: () => request("/api/admin/referrals"),
+    approveAmbassador: (userId) => request("/api/admin/ambassadors/approve", { method: "POST", body: JSON.stringify({ userId }) }),
+    rejectAmbassador: (userId) => request("/api/admin/ambassadors/reject", { method: "POST", body: JSON.stringify({ userId }) }),
     addPoints: (userId, points, reason) =>
       request("/api/admin/add-points", {
         method: "POST",

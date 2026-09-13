@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "../store/AuthContext";
 import { api } from "../lib/api";
 import { calculateAggregateImpact } from "../lib/impact";
@@ -17,6 +18,9 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [deposits, setDeposits] = useState([]);
   const [ranking, setRanking] = useState(null);
+  const [ambassador, setAmbassador] = useState(null);
+  const [referrals, setReferrals] = useState(null);
+  const [ambassadorBusy, setAmbassadorBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,12 +30,15 @@ export default function Dashboard() {
       api.user.stats(user.id),
       api.deposits.listByUser(user.id),
       api.user.ranking(user.id),
+      api.ambassador.eligibility(user.id),
     ])
-      .then(([statsData, depositsData, rankingData]) => {
+      .then(async ([statsData, depositsData, rankingData, ambassadorData]) => {
         if (cancelled) return;
         setStats(statsData);
         setDeposits(depositsData || []);
         setRanking(rankingData);
+        setAmbassador(ambassadorData);
+        if (ambassadorData.status === "approved") setReferrals(await api.referrals.mine(user.id));
       })
       .catch(() => {})
       .finally(() => !cancelled && setLoading(false));
@@ -40,17 +47,28 @@ export default function Dashboard() {
 
   const approved = deposits.filter((d) => d.status === "approved");
   const impact = calculateAggregateImpact(approved);
-  const collegeName = stats?.collegeName || user?.name || user?.class_name || "Colégio";
+  const userName = stats?.userName || user?.name || "Usuário";
   const totalPoints = stats?.totalPoints ?? user?.points ?? 0;
   const streakDays = calculateStreakDays(approved);
   const achievements = evaluateAchievements({ deposits: approved, impact, points: totalPoints });
+
+  async function requestAmbassadorCertification() {
+    if (!user) return;
+    setAmbassadorBusy(true);
+    try {
+      await api.ambassador.request(user.id);
+      setAmbassador((current) => current ? { ...current, status: "pending" } : current);
+    } finally {
+      setAmbassadorBusy(false);
+    }
+  }
 
   return (
     <div className="dashboard container">
       <section className="dashboard-hero">
         <p className="eyebrow">Seu impacto</p>
         <h1 className="display dashboard-title">
-          {loading ? "Calculando seu impacto…" : collegeName}
+          {loading ? "Calculando seu impacto…" : userName}
         </h1>
 
         <div className="dashboard-stats">
@@ -63,11 +81,18 @@ export default function Dashboard() {
           <PointsBadge points={stats?.totalPoints ?? user?.points ?? 0} />
           <Button as={Link} to="/depositar">Registrar novo depósito</Button>
         </div>
+
+        {user?.kioskCode && (
+          <div className="dashboard-kiosk-code">
+            <div className="dashboard-qr" title="QR Code de acesso ao quiosque"><QRCodeSVG value={user.kioskCode} size={164} level="H" includeMargin /></div>
+            <div><p className="eyebrow">Seu acesso ao quiosque</p><strong className="mono">{user.kioskCode}</strong><p className="text-dim">Use este código na lixeira física ou abra o modo simulado.</p><Link to="/quiosque" className="text-accent mono">abrir quiosque →</Link></div>
+          </div>
+        )}
       </section>
 
       <section className="dashboard-grid">
         <Card className="dashboard-ranking-card">
-          <p className="eyebrow">Ranking de colégios</p>
+          <p className="eyebrow">Ranking da comunidade</p>
           <div className="dashboard-ranking-row">
             <span className="text-dim">Posição global</span>
             <span className="mono">#{ranking?.global ?? "—"}</span>
@@ -75,6 +100,22 @@ export default function Dashboard() {
           <Link to="/ranking" className="text-accent mono dashboard-ranking-link">
             ver impacto da comunidade →
           </Link>
+        </Card>
+      </section>
+
+      <section className="dashboard-ambassador">
+        <Card className="dashboard-ambassador-card">
+          <p className="eyebrow">Programa de embaixadores</p>
+          <h2 className="display">{ambassador?.status === "approved" ? "Você é um Embaixador" : "Torne-se Embaixador"}</h2>
+          {ambassador?.status === "approved" ? <>
+            <p className="text-dim">Seu certificado está ativo e pode ser validado pelo código oficial.</p>
+            <div className="dashboard-ambassador-actions"><Button as={Link} to={`/certificado/${ambassador.certificateCode}`}>Ver certificado</Button><Button as={Link} to="/meu-crm" variant="ghost">Abrir meu CRM</Button></div>
+            <div className="dashboard-ambassador-progress"><span>Seu link: <strong className="mono">{`${window.location.origin}/cadastro?ref=${referrals?.code || "…"}`}</strong></span><span>{referrals?.total ?? 0} indicação(ões) cadastradas · {referrals?.qualified ?? 0} qualificadas · {referrals?.rewardPoints ?? 0} pontos de recompensa</span></div>
+          </> : ambassador?.status === "pending" ? <p className="dashboard-ambassador-pending">Sua solicitação está em análise pela equipe Lixeira Tech.</p> : <>
+            <p className="text-dim">Alcance a conquista <strong>Protetor do Planeta</strong>, desviando {ambassador?.minEwasteKg ?? 50} kg de e-lixo em depósitos aprovados.</p>
+            <div className="dashboard-ambassador-progress"><span>{ambassador?.ewasteKg ?? 0} / {ambassador?.minEwasteKg ?? 50} kg de e-lixo</span><span>{ambassador?.approvedDeposits ?? 0} depósitos aprovados</span></div>
+            {ambassador?.eligible ? <Button onClick={requestAmbassadorCertification} disabled={ambassadorBusy}>{ambassadorBusy ? "Enviando…" : "Solicitar certificação"}</Button> : <p className="dashboard-ambassador-locked">Continue seu impacto para desbloquear a solicitação.</p>}
+          </>}
         </Card>
       </section>
 

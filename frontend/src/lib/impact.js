@@ -80,7 +80,7 @@ export function calculateImpact(weightKg = 0, wasteType = "outros") {
 }
 
 /**
- * Soma o impacto de uma lista de depósitos (ex: histórico do colégio).
+ * Soma o impacto de uma lista de depósitos (ex: histórico de um usuário).
  * Cada depósito deve ter { weight, wasteType }.
  */
 export function calculateAggregateImpact(deposits = []) {
@@ -98,7 +98,7 @@ export function calculateAggregateImpact(deposits = []) {
 }
 
 // Estimativa média de kg de CO2 por ponto, usada apenas quando só temos o
-// total de pontos agregado (ex: pontos do colégio inteiro) e não o histórico
+// total de pontos agregado (ex: pontos de uma pessoa) e não o histórico
 // de depósitos individual. Baseada na régua de conversão usada no fluxo
 // de "adicionar pontos manualmente" do admin (10 pontos ~ 1kg de resíduo).
 export const AVG_CO2_PER_POINT_SAFE =

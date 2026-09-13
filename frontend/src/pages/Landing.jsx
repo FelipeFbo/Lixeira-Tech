@@ -260,7 +260,7 @@ export default function Landing() {
             variants={fadeUp}
             transition={{ delay: 0.18 }}
           >
-            Cada colégio constrói um histórico real de impacto —
+            Cada pessoa constrói um histórico real de impacto —
             números que podem ser citados, comparados e apresentados como prova de mudança
             de comportamento.
           </motion.p>

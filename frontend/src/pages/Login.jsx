@@ -74,6 +74,9 @@ export default function Login() {
           </form>
 
           <p className="auth-switch text-dim">
+            Esqueceu a senha? <Link to="/redefinir-senha" className="text-accent">Redefinir senha</Link>
+          </p>
+          <p className="auth-switch auth-switch-compact text-dim">
             Ainda não tem conta? <Link to="/cadastro" className="text-accent">Cadastre-se</Link>
           </p>
         </div>

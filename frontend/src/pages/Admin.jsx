@@ -5,14 +5,18 @@ import { calculateAggregateImpact, calculateImpact } from "../lib/impact";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
+import { BinMap } from "../components/admin/BinMap";
 import "./Admin.css";
 
 const TABS = [
   { key: "overview", label: "Visão geral" },
   { key: "deposits", label: "Depósitos" },
   { key: "pending", label: "Aprovações" },
-  { key: "students", label: "Colégios" },
-  { key: "classes", label: "Ranking por colégio" },
+  { key: "bins", label: "Lixeiras" },
+  { key: "students", label: "Usuários" },
+  { key: "ambassadors", label: "Embaixadores" },
+  { key: "referrals", label: "Indicações" },
+  { key: "classes", label: "Ranking geral" },
 ];
 
 const DASHBOARD_PERIODS = [
@@ -21,8 +25,15 @@ const DASHBOARD_PERIODS = [
   { key: "7", label: "Últimos 7 dias" },
 ];
 
+const DEPOSIT_PAGE_SIZE = 10;
+const INITIAL_DEPOSIT_FILTERS = { search: "", status: "all", wasteType: "all", period: "all", binName: "all" };
+
 function statusLabel(status) {
   return ({ pending: "Em análise", approved: "Aprovado", rejected: "Rejeitado" })[status] || status;
+}
+
+function depositTypeLabel(type) {
+  return String(type || "outros").replaceAll("_", " ");
 }
 
 export default function Admin() {
@@ -30,7 +41,10 @@ export default function Admin() {
   const [globalStats, setGlobalStats] = useState(null);
   const [pending, setPending] = useState([]);
   const [deposits, setDeposits] = useState([]);
+  const [bins, setBins] = useState([]);
   const [students, setStudents] = useState([]);
+  const [ambassadors, setAmbassadors] = useState([]);
+  const [referrals, setReferrals] = useState([]);
   const [classRankings, setClassRankings] = useState([]);
   const [pointsDraft, setPointsDraft] = useState({});
   const [addPointsDraft, setAddPointsDraft] = useState({});
@@ -38,13 +52,20 @@ export default function Admin() {
   const [dashboardPeriod, setDashboardPeriod] = useState("all");
   const [dashboardCategory, setDashboardCategory] = useState(null);
   const [dashboardMetric, setDashboardMetric] = useState("co2Kg");
+  const [depositFilters, setDepositFilters] = useState(INITIAL_DEPOSIT_FILTERS);
+  const [depositPage, setDepositPage] = useState(0);
+  const [binForm, setBinForm] = useState({ name: "", location: "", latitude: "-24.955500", longitude: "-53.455200" });
+  const [managedBin, setManagedBin] = useState(null);
 
   function loadAll() {
     api.admin.globalStats().then(setGlobalStats).catch(() => {});
     api.admin.pendingDeposits().then(setPending).catch(() => {});
     api.admin.depositsHistory().then(setDeposits).catch(() => {});
-    api.admin.students().then(setStudents).catch(() => {});
-    api.admin.classRankings().then(setClassRankings).catch(() => {});
+    api.admin.bins().then(setBins).catch(() => {});
+    api.admin.users().then(setStudents).catch(() => {});
+    api.admin.ambassadors().then(setAmbassadors).catch(() => {});
+    api.admin.referrals().then(setReferrals).catch(() => {});
+    api.admin.userRankings().then(setClassRankings).catch(() => {});
   }
 
   useEffect(loadAll, []);
@@ -77,7 +98,41 @@ export default function Admin() {
     if (!points) return;
     await api.admin.addPoints(studentId, points, "Pontos manuais (admin)");
     setAddPointsDraft((prev) => ({ ...prev, [studentId]: "" }));
-    api.admin.students().then(setStudents).catch(() => {});
+    api.admin.users().then(setStudents).catch(() => {});
+  }
+
+  async function collectBin(binId) {
+    await api.admin.collectBin(binId);
+    loadAll();
+  }
+
+  async function changeBinStatus(binId, status) {
+    await api.admin.updateBin(binId, { status });
+    loadAll();
+  }
+
+  async function createBin(event) {
+    event.preventDefault();
+    if (!binForm.name.trim() || !binForm.location.trim()) return;
+    await api.admin.createBin(binForm.name, binForm.location, binForm.latitude, binForm.longitude);
+    setBinForm({ name: "", location: "", latitude: "-24.955500", longitude: "-53.455200" });
+    loadAll();
+  }
+
+  async function reviewAmbassador(userId, decision) {
+    setBusyId(`ambassador-${userId}`);
+    try {
+      if (decision === "approve") await api.admin.approveAmbassador(userId);
+      else await api.admin.rejectAmbassador(userId);
+      loadAll();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function updateDepositFilter(field, value) {
+    setDepositFilters((current) => ({ ...current, [field]: value }));
+    setDepositPage(0);
   }
 
   const periodStart = dashboardPeriod === "all"
@@ -123,6 +178,35 @@ export default function Admin() {
     return { key, label: date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""), co2Kg: impact.co2Kg, deposits: dayDeposits.length };
   });
   const maxWeeklyCo2 = Math.max(...weeklyActivity.map((day) => day.co2Kg), 1);
+  const attentionBins = bins.filter((bin) => bin.capacity_pct >= 80 || bin.status !== "online");
+  const managedBinDeposits = managedBin ? pending.filter((deposit) => deposit.binId === managedBin.id) : [];
+  const depositTypes = [...new Set(deposits.map((deposit) => deposit.wasteType).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const depositBins = [...new Set([...bins.map((bin) => bin.name), ...deposits.map((deposit) => deposit.binName)].filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const depositPeriodStart = depositFilters.period === "all" ? null : new Date(Date.now() - Number(depositFilters.period) * 24 * 60 * 60 * 1000);
+  const normalizedDepositSearch = depositFilters.search.trim().toLocaleLowerCase("pt-BR");
+  const filteredDeposits = deposits.filter((deposit) => {
+    const matchesStatus = depositFilters.status === "all" || deposit.status === depositFilters.status;
+    const matchesType = depositFilters.wasteType === "all" || deposit.wasteType === depositFilters.wasteType;
+    const matchesBin = depositFilters.binName === "all" || deposit.binName === depositFilters.binName;
+    const matchesPeriod = !depositPeriodStart || new Date(deposit.date) >= depositPeriodStart;
+    const searchable = [deposit.userName, deposit.wasteType, deposit.binName, deposit.description].join(" ").toLocaleLowerCase("pt-BR");
+    return matchesStatus && matchesType && matchesBin && matchesPeriod && (!normalizedDepositSearch || searchable.includes(normalizedDepositSearch));
+  });
+  const depositPageCount = Math.max(1, Math.ceil(filteredDeposits.length / DEPOSIT_PAGE_SIZE));
+  const currentDepositPage = Math.min(depositPage, depositPageCount - 1);
+  const visibleDeposits = filteredDeposits.slice(currentDepositPage * DEPOSIT_PAGE_SIZE, (currentDepositPage + 1) * DEPOSIT_PAGE_SIZE);
+  const qualifiedReferrals = referrals.filter((referral) => referral.status === "qualified");
+  const pendingReferrals = referrals.filter((referral) => referral.status === "pending");
+  const referralRewardPoints = referrals.reduce((total, referral) => total + Number(referral.rewardPoints || 0), 0);
+  const referralConversionRate = referrals.length ? Math.round((qualifiedReferrals.length / referrals.length) * 100) : 0;
+  const ambassadorReferralRanking = Object.values(referrals.reduce((acc, referral) => {
+    const key = referral.ambassadorCode || referral.ambassadorName;
+    if (!acc[key]) acc[key] = { name: referral.ambassadorName, code: referral.ambassadorCode, total: 0, qualified: 0, points: 0 };
+    acc[key].total += 1;
+    acc[key].qualified += referral.status === "qualified" ? 1 : 0;
+    acc[key].points += Number(referral.rewardPoints || 0);
+    return acc;
+  }, {})).sort((a, b) => b.qualified - a.qualified || b.total - a.total);
 
   return (
     <div className="admin container">
@@ -130,9 +214,10 @@ export default function Admin() {
       <h1 className="display admin-title">Gestão da Lixeira Tech</h1>
 
       <div className="admin-stats-grid">
-        <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalColleges ?? "—"}</span><p className="text-dim">colégios cadastrados</p></Card>
+        <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalUsers ?? "—"}</span><p className="text-dim">usuários cadastrados</p></Card>
         <Card><span className="mono fs-mono-lg text-accent">{globalStats?.totalDeposits ?? "—"}</span><p className="text-dim">depósitos aprovados</p></Card>
         <Card><span className="mono fs-mono-lg text-accent">{globalStats?.todayDeposits ?? "—"}</span><p className="text-dim">depósitos hoje</p></Card>
+        <Card><span className="mono fs-mono-lg admin-dashboard-pending">{attentionBins.length}</span><p className="text-dim">lixeiras exigem atenção</p></Card>
       </div>
 
       <div className="admin-tabs">
@@ -158,28 +243,6 @@ export default function Admin() {
           </div>
 
           <div className="admin-dashboard-layout">
-            <aside className="admin-dashboard-rail">
-              <div>
-                <p className="eyebrow">Central de controle</p>
-                <h3 className="display">Avaliação em tempo real</h3>
-              </div>
-              <div className="admin-dashboard-gauges">
-                <div className="admin-dashboard-gauge" style={{ "--gauge-value": `${approvalRate * 3.6}deg` }}>
-                  <span className="mono">{approvalRate}%</span>
-                  <small>aprovação</small>
-                </div>
-                <div className="admin-dashboard-gauge admin-dashboard-gauge-cyan" style={{ "--gauge-value": `${Math.min(reviewedInPeriod * 18, 360)}deg` }}>
-                  <span className="mono">{reviewedInPeriod}</span>
-                  <small>avaliados</small>
-                </div>
-              </div>
-              <div className="admin-dashboard-rail-status">
-                <span className="text-dim">Fila atual</span>
-                <strong className="mono">{pending.length} pendente(s)</strong>
-              </div>
-              <Button variant="ghost" onClick={() => setTab("pending")}>Abrir aprovações</Button>
-            </aside>
-
             <div className="admin-dashboard-main">
           <div className="admin-dashboard-controls" aria-label="Período do dashboard">
             {DASHBOARD_PERIODS.map((period) => (
@@ -194,11 +257,11 @@ export default function Admin() {
           </div>
 
           <div className="admin-dashboard-stats">
-            <Card><span className="mono fs-mono-lg text-accent">{approvedInPeriod.length}</span><p className="text-dim">depósitos aprovados</p></Card>
-            <Card><span className="mono fs-mono-lg admin-dashboard-pending">{pendingInPeriod.length}</span><p className="text-dim">aguardando avaliação</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.ewasteKg} kg</span><p className="text-dim">e-lixo desviado</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.co2Kg} kg</span><p className="text-dim">CO2 evitado</p></Card>
-            <Card><span className="mono fs-mono-lg text-accent">{dashboardImpact.treesEquivalent.toFixed(2)}</span><p className="text-dim">árvores equivalentes</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{approvedInPeriod.length}</span><p className="text-dim">depósitos aprovados</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg admin-dashboard-pending">{pendingInPeriod.length}</span><p className="text-dim">aguardando avaliação</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.ewasteKg} kg</span><p className="text-dim">e-lixo desviado</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.co2Kg} kg</span><p className="text-dim">CO2 evitado</p></Card>
+            <Card className="admin-dashboard-stat"><span className="mono fs-mono-lg text-accent">{dashboardImpact.treesEquivalent.toFixed(2)}</span><p className="text-dim">árvores equivalentes</p></Card>
           </div>
 
           <div className="admin-dashboard-grid">
@@ -281,13 +344,13 @@ export default function Admin() {
 
           <div className="admin-dashboard-grid">
             <Card className="admin-dashboard-card">
-              <p className="eyebrow">Ranking de colégios</p>
+              <p className="eyebrow">Ranking da comunidade</p>
               <ol className="admin-dashboard-ranking admin-ranking-chart">
-                {classRankings.slice(0, 5).map((college) => (
-                  <li key={college.collegeName}>
-                    <span className="mono text-faint">#{college.rank}</span>
-                    <span className="admin-ranking-chart-name">{college.collegeName}<span className="admin-ranking-chart-track"><span style={{ width: `${(college.points / maxRankingPoints) * 100}%` }} /></span></span>
-                    <strong className="mono text-accent">{college.points} pts</strong>
+                {classRankings.slice(0, 5).map((account) => (
+                  <li key={account.userName}>
+                    <span className="mono text-faint">#{account.rank}</span>
+                    <span className="admin-ranking-chart-name">{account.userName}<span className="admin-ranking-chart-track"><span style={{ width: `${(account.points / maxRankingPoints) * 100}%` }} /></span></span>
+                    <strong className="mono text-accent">{account.points} pts</strong>
                   </li>
                 ))}
               </ol>
@@ -361,7 +424,7 @@ export default function Admin() {
         <div className="admin-panel">
           <table className="admin-table">
             <thead>
-              <tr><th>Colégio</th><th>Pontos</th><th>Adicionar pontos</th></tr>
+              <tr><th>Usuário</th><th>Pontos</th><th>Adicionar pontos</th><th>Telefone</th></tr>
             </thead>
             <tbody>
               {students.map((s) => (
@@ -380,6 +443,7 @@ export default function Admin() {
                       <Button variant="ghost" onClick={() => addManualPoints(s.id)}>Adicionar</Button>
                     </div>
                   </td>
+                  <td className="text-dim mono">{s.phone || "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -392,12 +456,43 @@ export default function Admin() {
           {deposits.length === 0 ? (
             <p className="text-dim">Nenhum depósito registrado ainda.</p>
           ) : (
-            <div className="admin-deposits-table-wrap">
+            <>
+              <section className="admin-deposit-filters" aria-label="Filtros de depósitos">
+                <div className="admin-deposit-filter-search">
+                  <label htmlFor="deposit-search">Buscar</label>
+                  <Input id="deposit-search" value={depositFilters.search} onChange={(event) => updateDepositFilter("search", event.target.value)} placeholder="Usuário, resíduo, lixeira ou observação" />
+                </div>
+                <label> Status
+                  <select value={depositFilters.status} onChange={(event) => updateDepositFilter("status", event.target.value)}>
+                    <option value="all">Todos</option><option value="pending">Em análise</option><option value="approved">Aprovados</option><option value="rejected">Rejeitados</option>
+                  </select>
+                </label>
+                <label> Resíduo
+                  <select value={depositFilters.wasteType} onChange={(event) => updateDepositFilter("wasteType", event.target.value)}>
+                    <option value="all">Todos</option>{depositTypes.map((type) => <option key={type} value={type}>{depositTypeLabel(type)}</option>)}
+                  </select>
+                </label>
+                <label> Período
+                  <select value={depositFilters.period} onChange={(event) => updateDepositFilter("period", event.target.value)}>
+                    <option value="all">Todo o período</option><option value="1">Hoje</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option>
+                  </select>
+                </label>
+                <label> Lixeira
+                  <select value={depositFilters.binName} onChange={(event) => updateDepositFilter("binName", event.target.value)}>
+                    <option value="all">Todas</option>{depositBins.map((binName) => <option key={binName} value={binName}>{binName}</option>)}
+                  </select>
+                </label>
+                <Button variant="ghost" className="admin-deposit-filter-reset" onClick={() => { setDepositFilters(INITIAL_DEPOSIT_FILTERS); setDepositPage(0); }}>Limpar filtros</Button>
+              </section>
+              <div className="admin-deposit-filter-summary"><span>{filteredDeposits.length} de {deposits.length} depósito(s)</span>{filteredDeposits.length > DEPOSIT_PAGE_SIZE && <span>Página {currentDepositPage + 1} de {depositPageCount}</span>}</div>
+              {filteredDeposits.length === 0 ? <p className="admin-deposit-empty text-dim">Nenhum depósito corresponde aos filtros selecionados.</p> : <>
+              <div className="admin-deposits-table-wrap">
               <table className="admin-table admin-deposits-table">
                 <thead>
                   <tr>
-                    <th>Colégio</th>
+                    <th>Usuário</th>
                     <th>Depósito</th>
+                    <th>Lixeira</th>
                     <th>Impacto</th>
                     <th>Observações</th>
                     <th>Data</th>
@@ -406,7 +501,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {deposits.map((d) => {
+                  {visibleDeposits.map((d) => {
                     const impact = calculateImpact(d.weight, d.wasteType);
                     return (
                     <tr key={d.id}>
@@ -415,6 +510,7 @@ export default function Admin() {
                         <strong>{d.wasteType}</strong>
                         <span className="admin-table-detail text-dim mono">{d.quantity} item(ns) · {d.weight} kg</span>
                       </td>
+                      <td className="text-dim">{d.binName}</td>
                       <td>
                         <div className="admin-impact-details mono">
                           <span>{impact.ewasteKg} kg e-lixo</span>
@@ -431,20 +527,67 @@ export default function Admin() {
                   })}
                 </tbody>
               </table>
-            </div>
+              </div>
+              {depositPageCount > 1 && <nav className="admin-deposit-pagination" aria-label="Paginação dos depósitos"><Button variant="ghost" disabled={currentDepositPage === 0} onClick={() => setDepositPage((page) => Math.max(0, page - 1))}>Anterior</Button><span>Página {currentDepositPage + 1} de {depositPageCount}</span><Button variant="ghost" disabled={currentDepositPage >= depositPageCount - 1} onClick={() => setDepositPage((page) => Math.min(depositPageCount - 1, page + 1))}>Próxima</Button></nav>}
+              </>}
+            </>
           )}
         </div>
       )}
 
+      {tab === "ambassadors" && (
+        <section className="admin-ambassadors">
+          <div className="admin-ambassadors-header"><div><p className="eyebrow">Programa de embaixadores</p><h2 className="display">Certificações</h2></div><p className="text-dim">Aprovações geram um certificado verificável por código.</p></div>
+          {ambassadors.length === 0 ? <p className="admin-ambassadors-empty text-dim">Ainda não há solicitações de embaixadores.</p> : <div className="admin-ambassadors-list">{ambassadors.map((ambassador) => <Card key={ambassador.id} className={`admin-ambassador-card status-${ambassador.status}`}><div><p className="eyebrow">{ambassador.status === "pending" ? "Aguardando análise" : ambassador.status === "approved" ? "Embaixador certificado" : "Solicitação recusada"}</p><h3 className="display">{ambassador.name}</h3><p className="text-dim">{ambassador.email}</p></div><div className="admin-ambassador-metrics"><span>{ambassador.ewasteKg} / {ambassador.minEwasteKg} kg de e-lixo</span><span>{ambassador.approvedDeposits} depósitos aprovados</span></div><div className="admin-ambassador-actions">{ambassador.status === "pending" ? <><Button disabled={busyId === `ambassador-${ambassador.id}`} onClick={() => reviewAmbassador(ambassador.id, "approve")}>Aprovar e certificar</Button><Button variant="ghost" disabled={busyId === `ambassador-${ambassador.id}`} onClick={() => reviewAmbassador(ambassador.id, "reject")}>Recusar</Button></> : ambassador.status === "approved" ? <a className="text-accent mono" href={`/certificado/${ambassador.certificateCode}`} target="_blank" rel="noreferrer">ver certificado →</a> : <span className="text-dim">Recusado</span>}</div></Card>)}</div>}
+        </section>
+      )}
+
+      {tab === "referrals" && (
+        <section className="admin-ambassadors">
+          <div className="admin-ambassadors-header"><div><p className="eyebrow">CRM interno</p><h2 className="display">Dashboard de indicações</h2></div><p className="text-dim">A recompensa é liberada no primeiro depósito aprovado do indicado.</p></div>
+          <div className="admin-crm-stats">
+            <Card><span className="mono fs-mono-lg text-accent">{referrals.length}</span><p className="text-dim">cadastros por indicação</p></Card>
+            <Card><span className="mono fs-mono-lg admin-dashboard-pending">{pendingReferrals.length}</span><p className="text-dim">aguardando conversão</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{qualifiedReferrals.length}</span><p className="text-dim">indicações qualificadas</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{referralConversionRate}%</span><p className="text-dim">taxa de conversão</p></Card>
+            <Card><span className="mono fs-mono-lg text-accent">{referralRewardPoints}</span><p className="text-dim">pontos distribuídos</p></Card>
+          </div>
+          <div className="admin-crm-grid">
+            <Card className="admin-dashboard-card"><p className="eyebrow">Desempenho</p><h3 className="display">Embaixadores que indicam</h3>{ambassadorReferralRanking.length === 0 ? <p className="text-dim">Ainda não há dados de indicação.</p> : <ol className="admin-dashboard-ranking">{ambassadorReferralRanking.map((item, index) => <li key={item.code}><span className="text-faint mono">#{index + 1}</span><div className="admin-ranking-chart-name"><strong>{item.name}</strong><span className="admin-ranking-chart-track"><span style={{ width: `${Math.max(8, (item.qualified / Math.max(1, ambassadorReferralRanking[0].qualified)) * 100)}%` }} /></span></div><span className="mono text-accent">{item.qualified}/{item.total}</span></li>)}</ol>}</Card>
+            <Card className="admin-dashboard-card"><p className="eyebrow">Regra de conversão</p><h3 className="display">Como a recompensa funciona</h3><div className="admin-crm-rule"><span>1</span><p>Cadastro por link do embaixador</p><span>2</span><p>Primeiro depósito registrado</p><span>3</span><p>Admin aprova o depósito</p><span>4</span><p><strong>50 pontos</strong> liberados ao embaixador</p></div></Card>
+          </div>
+          {referrals.length === 0 ? <p className="admin-ambassadors-empty text-dim">Ainda não há cadastros por indicação.</p> : <div className="admin-ambassadors-list">{referrals.map((referral) => <Card key={referral.id} className="admin-ambassador-card"><div><p className="eyebrow">{referral.status === "qualified" ? "Indicação qualificada" : "Aguardando primeiro depósito"}</p><h3 className="display">{referral.name}</h3><p className="text-dim">Indicado por {referral.ambassadorName}</p></div><div className="admin-ambassador-metrics"><span>{referral.rewardPoints} pontos de recompensa</span><span className="mono">{referral.ambassadorCode}</span></div><div className="admin-ambassador-actions"><span className={referral.status === "qualified" ? "text-accent mono" : "text-dim mono"}>{referral.status === "qualified" ? "Convertido" : "Pendente"}</span></div></Card>)}</div>}
+        </section>
+      )}
+
+      {tab === "bins" && (
+        <section className="admin-bins">
+          <div className="admin-bins-header"><div><p className="eyebrow">Infraestrutura simulada</p><h2 className="display">Lixeiras físicas</h2></div><p className="text-dim">Capacidade é atualizada a cada depósito do quiosque.</p></div>
+          {attentionBins.length > 0 && <div className="admin-bin-alert"><strong>{attentionBins.length} alerta(s)</strong><span>{attentionBins.map((bin) => `${bin.name}: ${bin.status !== "online" ? "indisponível" : `${bin.capacity_pct}% cheia`}`).join(" · ")}</span></div>}
+          <div className="admin-bin-map" aria-label="Mapa de Cascavel com as lixeiras cadastradas"><div><p className="eyebrow">Mapa de operação</p><strong>Cascavel, Paraná</strong><p className="text-dim">Marcadores mostram a condição atual de cada unidade.</p><div className="admin-map-legend"><span><i className="online" />Online</span><span><i className="maintenance" />Manutenção</span><span><i className="offline" />Offline</span></div></div><BinMap bins={bins} onPickLocation={(point) => setBinForm((prev) => ({ ...prev, latitude: point.lat.toFixed(6), longitude: point.lng.toFixed(6) }))} /></div>
+          <div className="admin-bins-grid">
+            {bins.map((bin) => (
+              <Card key={bin.id} className={`admin-bin-card status-${bin.status}`}>
+                <div className="admin-bin-card-head"><div><p className="eyebrow">{bin.status === "online" ? "Online" : bin.status === "maintenance" ? "Em manutenção" : "Offline"}</p><h3 className="display">{bin.name}</h3><p className="text-dim">{bin.location}</p></div><span className="admin-bin-capacity mono">{bin.capacity_pct}%</span></div>
+                <div className="admin-bin-meter"><span style={{ width: `${bin.capacity_pct}%` }} /></div>
+                <p className="text-dim">Última coleta: {bin.last_collected_at ? new Date(bin.last_collected_at).toLocaleDateString("pt-BR") : "—"}</p>
+                <div className="admin-bin-actions"><select value={bin.status} onChange={(event) => changeBinStatus(bin.id, event.target.value)}><option value="online">Online</option><option value="maintenance">Manutenção</option><option value="offline">Offline</option></select><Button variant="ghost" onClick={() => setManagedBin(bin)}>Gerenciar lixeira</Button><Button variant="ghost" onClick={() => collectBin(bin.id)}>Registrar coleta</Button></div>
+              </Card>
+            ))}
+          </div>
+          <form className="admin-bin-create" onSubmit={createBin}><p className="eyebrow">Adicionar unidade em Cascavel</p><Input value={binForm.name} onChange={(event) => setBinForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Nome da lixeira" /><Input value={binForm.location} onChange={(event) => setBinForm((prev) => ({ ...prev, location: event.target.value }))} placeholder="Endereço ou referência" /><Input type="number" step="0.000001" value={binForm.latitude} onChange={(event) => setBinForm((prev) => ({ ...prev, latitude: event.target.value }))} aria-label="Latitude" placeholder="Latitude" /><Input type="number" step="0.000001" value={binForm.longitude} onChange={(event) => setBinForm((prev) => ({ ...prev, longitude: event.target.value }))} aria-label="Longitude" placeholder="Longitude" /><Button type="submit">Adicionar lixeira</Button></form>
+        </section>
+      )}
+
       {tab === "classes" && (
         <div className="admin-panel">
-          {classRankings.length === 0 && <p className="text-dim">Nenhum colégio cadastrado ainda.</p>}
+          {classRankings.length === 0 && <p className="text-dim">Nenhum usuário cadastrado ainda.</p>}
           <ol className="admin-college-ranking">
           {classRankings.map((c) => (
-            <li key={c.collegeName} className="admin-college-ranking-row">
+            <li key={c.userName} className="admin-college-ranking-row">
               <span className="admin-college-rank mono">#{c.rank}</span>
               <div>
-                <h3 className="display">{c.collegeName}</h3>
+                <h3 className="display">{c.userName}</h3>
               </div>
               <span className="mono text-accent admin-college-points">{c.points} pts</span>
             </li>
@@ -452,6 +595,19 @@ export default function Admin() {
           </ol>
         </div>
       )}
+
+      <AnimatePresence>
+        {managedBin && (
+          <motion.div className="admin-bin-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setManagedBin(null); }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.section className="admin-bin-modal" role="dialog" aria-modal="true" aria-labelledby="bin-management-title" initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }}>
+              <div className="admin-bin-modal-head"><div><p className="eyebrow">Depósitos em análise</p><h2 id="bin-management-title" className="display">{managedBin.name}</h2><p className="text-dim">{managedBin.location}</p></div><Button variant="ghost" onClick={() => setManagedBin(null)}>Fechar</Button></div>
+              <div className="admin-bin-modal-summary"><strong className="mono">{managedBinDeposits.length}</strong><span className="text-dim">depósito(s) aguardando avaliação nesta lixeira</span></div>
+              {managedBinDeposits.length === 0 ? <p className="admin-bin-modal-empty text-dim">Não há depósitos em análise nesta lixeira.</p> : <div className="admin-bin-modal-list">{managedBinDeposits.map((deposit) => <article key={deposit.id} className="admin-bin-modal-row"><div><p className="admin-bin-modal-user mono">Usuário: <strong>{deposit.userName}</strong></p><strong>{deposit.wasteType}</strong><p className="mono text-dim">{deposit.quantity} item(ns) · {deposit.weight} kg · {new Date(deposit.date).toLocaleDateString("pt-BR")}</p><p className="text-dim">{deposit.description || "Sem observações"}</p></div><span className="admin-status admin-status-pending">Em análise</span></article>)}</div>}
+              <div className="admin-bin-modal-footer"><Button variant="ghost" onClick={() => { setManagedBin(null); setTab("pending"); }}>Abrir aprovações</Button></div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
